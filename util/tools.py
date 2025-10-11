@@ -20,6 +20,14 @@ import pandera.pandas as pa
 from pandera.typing import DataFrame
 from util.types import SisId, DataBy_StudentSisId
 
+def add_tuples[T: tuple](a: T, b: T) -> T:
+    ''' Add two tuples element-wise. '''
+    sum_elements = (
+        element_a + element_b
+        for element_a, element_b in zip(a, b)
+    )
+    return type(a)(*sum_elements)
+
 def to_real_number(value: str) -> num.Real:
     if '.' in value:
         out = float(value)
