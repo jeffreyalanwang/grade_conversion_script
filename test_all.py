@@ -1,13 +1,14 @@
 import sys
 from pathlib import Path
+from zipfile import is_zipfile
 import pkgutil
 from importlib import import_module
 
 from pkgutil import ModuleInfo
 from types import ModuleType
-from typing import Optional
 
-from util.tools import add_tuples
+from bootstrap_utils import get_top_level_dir
+from util.funcs import add_tuples
 
 import doctest
 
@@ -80,9 +81,8 @@ def test_top_level():
     '''
     Test everything in the top-level package (where __main__.py is located).
     '''
-    import __main__ # that's a different file than this one (test_all.py)
-    main_file_path = __main__.__file__
-    tld = Path(main_file_path).parent
+    tld = get_top_level_dir()
+    assert not is_zipfile(tld), "Cannot test a zip file."
 
     results = doctest.TestResults(0, 0)
     for child in tld.iterdir():
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     print(f"{Path(__file__).name} final results")
     _print_separator()
     print(f"{results.attempted - results.failed} passed"
-           " and {results.failed} failed.")
+          f" and {results.failed} failed.")
     if results.failed == 0:
         print("Tests passed.")
     else:
