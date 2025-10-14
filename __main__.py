@@ -1,13 +1,15 @@
+from bootstrap_utils import ensure_dependencies
+ensure_dependencies()
+
 import pandas as pd
 from pathlib import Path
 
-from typing import *
+from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 from pandera.typing import DataFrame
-from .util.types import PtsBy_StudentSisId
+from util.types import PtsBy_StudentSisId
 
-from .cmd_opts import run as get_cmd_setup
-from .input import *
-from .output import *
+from input import *
+from output import *
 
 def process_input_file(handler: InputHandler, files: Iterable[Path]):
     ''' Read and process grades to internal format. '''
@@ -24,6 +26,7 @@ def create_output_file(scores: DataFrame[PtsBy_StudentSisId], handler: OutputFor
     handler.write_file(out_df, filepath)
 
 if __name__ == '__main__':
+    from cmd_opts import run as get_cmd_setup
 
     handlers, files_str = get_cmd_setup() # argparse reads cmd args
 
@@ -37,8 +40,16 @@ if __name__ == '__main__':
 
     if isinstance(files_str.output, str):
         output_file_path = Path(files_str.output)
+        if not output_file_path.parent.exists():
+            raise FileNotFoundError( "Output file's parent directory"
+                                    f" does not exist: {output_file_path.parent}")
+        if output_file_path.exists():
+            new_stem = output_file_path.stem + "_1"
+            output_file_path = output_file_path.parent / (new_stem + output_file_path.suffix)
     else:
         # could be an iterable of strings,
+        # in the future,
         # but we do not handle this right now
         raise NotImplementedError
     create_output_file(data, handlers.output, output_file_path)
+    print(f"Result saved to {output_file_path}.")
