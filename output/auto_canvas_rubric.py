@@ -2,11 +2,12 @@ import pandas as pd
 from pathlib import Path
 from .base import OutputFormat
 
-from typing import *
+from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import pandera.pandas as pa
 from pandera.typing import DataFrame
+
 from util.types import PtsBy_StudentSisId, DataBy_StudentSisId
-from util.tools import NameSisIdConverter
+from util import NameSisIdConverter
 
 class AcrOutputFormat(OutputFormat):
     '''

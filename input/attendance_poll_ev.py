@@ -2,12 +2,12 @@ import pandas as pd
 from pathlib import Path
 from .base import InputHandler
 
-from typing import *
+from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
-from pandera.typing import DataFrame
+from pandera.typing import DataFrame, Series
 from util.types import SisId, PtsBy_StudentSisId, BoolsBy_StudentSisId
-from util.tools import NameSisIdConverter
+from util import NameSisIdConverter
 
 class AttendancePollEv(InputHandler):
     '''
@@ -61,6 +61,8 @@ class AttendancePollEv(InputHandler):
         def has_attended(student_row) -> bool:
             # check rule is defined here
             grade = student_row['Grade']
+            if isinstance(grade, str) and grade.startswith("'"):
+                grade = grade[1:]
             return bool(grade) and (float(grade) != 0)
         attendance = student_rows \
                         .apply(
@@ -69,9 +71,15 @@ class AttendancePollEv(InputHandler):
                         )
         
         # Output formatting
-        # set index
+        student_names: pd.Series = student_rows['First name'] + ' ' + student_rows['Last name']
         sis_ids = student_rows['Email'] \
-                    .apply(SisId.from_email)
+                    .apply(lambda x: SisId.from_email(x) if not pd.isna(x) else None)
+        # drop NaNs before we reindex
+        to_drop = student_names.isna() | sis_ids.isna()
+        sis_ids = sis_ids[~to_drop]
+        student_names = student_names[~to_drop]
+        attendance = attendance[~to_drop]
+        # set index
         attendance = attendance.set_axis(sis_ids, axis='index')
         # set labels
         attendance = attendance \
@@ -81,8 +89,7 @@ class AttendancePollEv(InputHandler):
         assert isinstance(attendance, pd.Series)  
         attendance = attendance.to_frame()
         
-        # Populate Name/SisId store
-        student_names: pd.Series = student_rows[['First name', 'Last name']].agg(' '.join, axis='columns')
+        # Populate Name/SisId store        
         self.name_sis_id_store.addFromCols(sis_ids=sis_ids, names=student_names)
 
         return DataFrame[BoolsBy_StudentSisId](attendance)
@@ -104,11 +111,11 @@ class AttendancePollEv(InputHandler):
             insertion order.
         '''
         # Create a column for each day of attendance.
-        def csv_to_column(col_label, csv: pd.DataFrame) -> pd.Series[bool]:
+        def csv_to_column(col_label, csv: pd.DataFrame) -> Series[bool]:
             attendance_df = self.get_single_day_attendance(csv) # process into bools
             series = attendance_df['attended'] # turn into series
             series.name = col_label # rename with intended column label
-            return series
+            return Series[bool](series)
         cols: Iterable[pd.Series]
         cols = (csv_to_column(day_label, csv)
                 for day_label, csv in pollev_days.items())

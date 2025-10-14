@@ -1,8 +1,9 @@
-from abc import ABC, abstractmethod
-
-from typing import *
 from pathlib import Path
 import pandas as pd
+
+from abc import ABC, abstractmethod
+
+from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 from pandera.typing import DataFrame
 from util.types import PtsBy_StudentSisId
 

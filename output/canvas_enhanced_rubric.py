@@ -1,14 +1,17 @@
 import enum
 import pandas as pd
 from pathlib import Path
-from .base import OutputFormat
 
-from typing import *
+from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
 from pandera.typing import DataFrame
+
+from .base import OutputFormat
+
+from util import NameSisIdConverter
 from util.types import SisId, PtsBy_StudentSisId
-from util.tools import NameSisIdConverter, interactive_name_sis_id_match, interactive_rubric_criteria_match
+from util.tui import interactive_rubric_criteria_match, interactive_name_sis_id_match
 
 class CanvasEnhancedRubricOutputFormat(OutputFormat):
     '''
@@ -44,7 +47,6 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
     Keeping old grade of 5 at name1, Criterion 2 (Rating "" and Comment "excused")
     >>> new_csv[['Student Name', 'Criterion 1 - Points', 'Criterion 2 - Points']]
            Student Name Criterion 1 - Points  Criterion 2 - Points
-    sis_id                                                        
     name1      Name One                    3                     5
     '''
 
@@ -58,6 +60,7 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
             rubric_criteria_match=interactive_rubric_criteria_match
         ):
         super().__init__()
+        
         self.name_sis_id_converter = name_sis_id_converter
             # note: may not be populated at __init__() call time
         
@@ -81,26 +84,54 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
             A dataframe which can be saved to file with self.write_file().
         '''
 
+        # Translate rubric + input: sis_ids -> names
+
         all_dest_names = self.rubric_template['Student Name'].astype(str).to_list()
         all_input_names = self.name_sis_id_converter.names
 
         unrecognized_dest_names = set(all_dest_names) - set(all_input_names)
         unused_input_names = set(all_input_names) - set(all_dest_names)
-        unused_input_sis_ids = (self.name_sis_id_converter.to_sis_id(x) for x in unused_input_names)
+        unused_input_sis_ids = [self.name_sis_id_converter.to_sis_id(x) for x in unused_input_names]
 
         for sis_id in unused_input_sis_ids:
             self.name_sis_id_converter.remove_sis_id(sis_id)
-
         self.name_sis_id_match(
             names_to_match=unrecognized_dest_names,
             sis_ids_to_match=unused_input_sis_ids,
             out=self.name_sis_id_converter
         )
 
+        # In order to reindex rubric by sis_id,
+        # each name therein needs a corresponding entry
+        # in `name_sis_id_converter`.
+        #
+        # However, not everyone from rubric is in input `grades` at all.
+        # This means we have no source to get their sis_id from anyways.
+        #
+        # TODO Instead, implement a default_grade option (None | num.Real)
+        all_input_names = self.name_sis_id_converter.names # this value has changed
+        still_unrecognized_dest_names = set(all_dest_names) - set(all_input_names)
+        is_recognized_row_mask = ~(self.rubric_template['Student Name']
+                                   .isin(still_unrecognized_dest_names))        
+
+        modified_rubric = self.rubric_template.copy()
+        modified_rubric = pd.concat([
+            self.name_sis_id_converter.reindex_by_sis_id(
+                modified_rubric[is_recognized_row_mask],
+                'Student Name'
+            ),
+            modified_rubric[~is_recognized_row_mask]
+        ])
+
+        # Translate input: column label -> rubric criterion
+
         user_criteria = grades.columns.to_list()
         canvas_criteria = self.rubric_template.columns.to_list()
+            # ^ start with all rubric columns
         canvas_criteria = filter(lambda x: x.endswith(" - Points"), canvas_criteria)
+            # ^ pull one column label for each criteria
         canvas_criteria = (x[:-1 * len(" - Points")] for x in canvas_criteria)
+            # ^ cut off " - Points" suffix
 
         given_to_dest_criteria = self.rubric_criteria_match(
             given_labels=user_criteria,
@@ -108,12 +139,8 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
         )
         
         grades.columns = grades.columns.map(given_to_dest_criteria)
-
-        # keep this around for assert at the end
-        modified_rubric = self.name_sis_id_converter.reindex_by_sis_id(
-                            self.rubric_template.copy(),
-                            'Student Name'
-                        )
+        
+        # Keep around intermediate copy for assert at the end
         new_rubric = modified_rubric.copy()
         
         # Iterate by both axes in `grades` dataframe
@@ -149,9 +176,18 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
                 new_rubric.at[student_idx, col_header] = cast_value
             
             # Should we fill the current criterion for the current student?
+            def is_pd_value_present(value) -> bool:
+                if pd.isna(value):
+                    return False
+                if isinstance(value, str):
+                    if "nan" == value.lower():
+                        return False
+                    if len(value) == 0:
+                        return False
+                return True
             grade_already_present: bool = \
                 any(
-                    bool(get_curr_val(semantic_label))
+                    is_pd_value_present( get_curr_val(semantic_label) )
                     for semantic_label in criterion_csv_headers.keys()
                 )
             should_fill_curr = (not grade_already_present) or self.replace_existing
@@ -186,9 +222,10 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
         assert (
             modified_rubric
                 .drop(modified_columns, axis='columns', inplace=False)
-            == new_rubric
+        ).equals(
+            new_rubric
                 .drop(modified_columns, axis='columns', inplace=False)
-        ).all(axis=None)
+        )
 
         return new_rubric
     

@@ -3,12 +3,12 @@ import pandas as pd
 from pathlib import Path
 from .base import OutputFormat
 
-from typing import *
+from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
 import pandas.api.types as pd_types
 from pandera.typing import DataFrame
-from util.tools import is_pd_scalar
+from util.funcs import is_pd_scalar
 from util.types import SisId, PtsBy_StudentSisId
 
 class CanvasGradebookOutputFormat(OutputFormat):
