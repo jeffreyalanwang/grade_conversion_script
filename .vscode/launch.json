@@ -1,0 +1,20 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Package",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "grade_conversion_script",
+            "cwd": "${workspaceFolder}/..",
+            "args": [
+                "grade_conversion_script",
+                "input", "pollev_attendance", "2", "C:\\Users\\jeffw\\Downloads\\crapattendance\\itsc-3146-003-wk2-fri-gradebook_1624332 (1).csv",
+                "output", "e_rubric", "C:\\Users\\jeffw\\Downloads\\export_rubric_assessments (1).csv", "C:\\Users\\jeffw\\Downloads\\output.csv"
+            ],
+        }
+    ]
+}

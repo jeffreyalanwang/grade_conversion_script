@@ -1,0 +1,25 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Package: test",
+			"command": "python",
+			"args": ["${workspaceFolder}/test_all.py"],
+			"detail": "Run custom test script",
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "Package: build",
+			"command": "python3.13",
+			"args": ["${workspaceFolder}/build.py"],
+			"detail": "Run custom build script",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}
