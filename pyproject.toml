@@ -1,0 +1,23 @@
+[project]
+name = "grade_conversion_script"
+version = "0.0.1"
+dependencies = [
+  'pandas',
+  'pandera',
+  'argparse',
+  'colorama',
+]
+
+[project.urls]
+Homepage = "https://github.com/jeffreyalanwang/grade_conversion_script"
+Repository = "https://github.com/jeffreyalanwang/grade_conversion_script.git"
+"Bug Tracker" = "https://github.com/jeffreyalanwang/grade_conversion_script/issues"
+
+[project.scripts]
+grade_conversion = "grade_conversion_script"
+
+[project.entry-points."test"]
+test_all = "grade_conversion_script:test_all"
+
+[project.entry-points."build"]
+build = "grade_conversion_script:build"
