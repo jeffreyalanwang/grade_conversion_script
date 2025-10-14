@@ -1,9 +1,10 @@
 import re
 
-from typing import *
+import pandas as pd
+
+from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import pandera.pandas as pa
 from pandera.errors import SchemaError
-import pandas as pd
 import numbers as num
 
 class SisId(str):
@@ -51,7 +52,8 @@ class SisId(str):
         sis_login_id, email_domain = email.split('@')
         
         if email_domain != "charlotte.edu":
-            raise ValueError(f"Email {email} is not a UNC Charlotte email.")
+            raise ValueError(f"Email {email} is not a UNC Charlotte email."
+                              "Try modifying or removing from dataset.")
         
         return cls(sis_login_id)
     
