@@ -1,5 +1,8 @@
-from bootstrap_utils import ensure_dependencies
-ensure_dependencies()
+# We need to make sure non-packaged dependencies
+# (i.e. packages with native extension code, e.g. pandas)
+# are available
+from bootstrap_utils import ensure_pkg_dependencies
+ensure_pkg_dependencies()
 
 import pandas as pd
 from pathlib import Path
