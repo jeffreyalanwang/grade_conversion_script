@@ -130,8 +130,8 @@ def parse_args() -> tuple[Namespace, Namespace]:
         )
         c_gradebook_cmd \
         .add_argument(
-            '--warn-existing',
-            action='store_true',
+            '--no-warn-existing',
+            action='store_false', # => default (flag not present) is True
             dest='warn_existing',
             help='warn if a grade to be filled already'
                 ' exists (even if it is not replaced).'
@@ -175,7 +175,7 @@ def parse_args() -> tuple[Namespace, Namespace]:
         c_enhanced_rubric_cmd \
         .add_argument(
             '--no-warn-existing',
-            action='store_false',
+            action='store_false', # => default (flag not present) is True
             dest='warn_existing',
             help='warn if a grade to be filled already'
                 ' exists (even if it is not replaced).'
