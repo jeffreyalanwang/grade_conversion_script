@@ -25,12 +25,7 @@ def get_top_level_dir():
 
     return top_level_dir
 
-def ensure_dependencies():
-    '''
-    Insure this package's dependencies are installed,
-    using data from top-level `pyproject.toml`.
-    '''
-    from importlib import import_module
+def get_pkg_dependencies():
     import tomllib
     from zipfile import ZipFile, is_zipfile
 
@@ -53,12 +48,25 @@ def ensure_dependencies():
     # Get dependencies
     project_table = pyproject_toml["project"]
     dependencies: list[str] = project_table["dependencies"]
+
+    return dependencies
+
+def ensure_pkg_dependencies():
+    '''
+    Insure this package's dependencies are installed,
+    using data from top-level `pyproject.toml`.
+    '''
+    from importlib import import_module
     
+    dependencies = get_pkg_dependencies()
+
     # Try importing each, check if unavailable
     for dependency in dependencies:
         try:
             import_module(dependency)
         except ModuleNotFoundError as e:
             missing_module = e.name
-            e.msg += (f"Try installing the dependency:"
+            e.msg += (f"\n\n"
+                      f"Try installing the dependency:"
                       f" python -m pip install {missing_module}")
+            raise e
