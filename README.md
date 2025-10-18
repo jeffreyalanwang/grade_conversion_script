@@ -14,6 +14,7 @@ to convert grades from one .csv format to another.
      cd VENV_FOLDER_PATH
      source bin/activate
      ```
+     (Leave the venv with the `deactivate` command.)
    * Then:
      ```console
      python3 -m pip pandas pandera argparse colorama
