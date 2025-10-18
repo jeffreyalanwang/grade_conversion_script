@@ -26,20 +26,19 @@ to convert grades from one .csv format to another.
 
 ### Examples
 
-**Get help** for the Enhanced Rubric format (Canvas).
 ```console
 python3 grade_conversion_script.pyz output e_rubric --help
 ```
+**Get help** for the Enhanced Rubric format (Canvas).
 
+```console
+python3 ./grade_conversion_script.pyz input pollev_attendance 2 $ATT_1 $ATT_2 output e_rubric $ORIG_RUBRIC --no-warn-existing "output.csv"
+```
 **Read PollEv attendance** export files at paths `$ATT_1` and `$ATT_2`, with each day of attendance worth 2 points.
 
 Convert to Enhanced Rubric format (Canvas). If an existing value exists, do not replace it and do not print a warning. Downloaded template is available at `$ORIG_RUBRIC`.
 
 Save result to `./output.csv`.
-
-```console
-python3 ./grade_conversion_script.pyz input pollev_attendance 2 $ATT_1 $ATT_2 output e_rubric $ORIG_RUBRIC --no-warn-existing "output.csv"
-```
 
 ## Extending
 
