@@ -125,7 +125,12 @@ class AttendancePollEv(InputHandler):
         # Replace NaNs with False.
         # Pandas uses NaN during the merge of columns by index (i.e. sis_id)
         # to show that a row was not present for that column.
-        attendance_multi_day.fillna(False)
+        attendance_multi_day = (
+            attendance_multi_day
+                .astype("boolean") # pandas nullable Boolean
+                .fillna(False)
+                .astype(bool)
+        )
 
         # Assert column order.
         expected_column_names: list[str] = list(pollev_days.keys())
@@ -147,10 +152,6 @@ class AttendancePollEv(InputHandler):
             A DataFrame of same shape, index, and labels as input,
             but with int or float values.
         '''
-        # Check input DataFrame
-        assert len(attendance_bools.dtypes) == 1
-        assert attendance_bools.dtypes.iloc[0] == bool
-
         # Create DataFrame with output type
         dest_type = type(self.pts_per_day)
         attendance_pts = attendance_bools.astype(dest_type) # 0s and 1s
