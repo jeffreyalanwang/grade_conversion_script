@@ -23,8 +23,12 @@ class NameSisIdConverter:
         return self._sis_to_name.keys()
 
     def add(self, *, name: str, sis_id: SisId):
-        if (name in self._name_to_sis.keys()
-            or sis_id in self._sis_to_name.keys()):
+        if (
+            name in self._name_to_sis.keys()
+            or sis_id in self._sis_to_name.keys()
+        ) and not (
+            name == self.to_name(sis_id)
+        ):
             raise ValueError(f"Cannot add name/sis_id ({name}, {sis_id}). "
                              f"Call remove_name() or remove_sis_id() first.")
         self._name_to_sis[name] = sis_id
