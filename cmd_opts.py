@@ -142,7 +142,9 @@ def parse_args() -> tuple[Namespace, Namespace]:
             .add_parser(
                 'acr', # stored under args['input_format']
                 description='create a file which can be loaded into'
-                            ' Auto Canvas Rubric Chrome extension',
+                            ' Auto Canvas Rubric Chrome extension'
+                            ' (for non-enhanced rubrics; see'
+                            ' https://github.com/jeffreyalanwang/auto_canvas_rubric/)',
                 help="`output acr --help`",
             )
         acr_cmd.usage = \
