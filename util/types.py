@@ -114,13 +114,14 @@ class BoolsBy_StudentSisId(DataBy_StudentSisId):
         ...
     pandera.errors.SchemaError: ...
     '''
-    @pa.dataframe_check(element_wise=True)
+    @pa.dataframe_check(element_wise=True) # element_wise actually means by rows
     def data_is_bools(cls, row: pd.Series) -> bool:
         bools_schema = pa.SeriesSchema(bool, nullable=False)
         row = row.rename(None, inplace=False)
         try:
             bools_schema.validate(row)
-        except SchemaError:
+        except SchemaError as e:
+            print(e)
             return False
         
         return True
@@ -152,7 +153,7 @@ class PtsBy_StudentSisId(DataBy_StudentSisId):
         ...
     pandera.errors.SchemaError: ...
     '''
-    @pa.dataframe_check(element_wise=True)
+    @pa.dataframe_check(element_wise=True) # element_wise actually means by rows
     def data_is_nums(cls, row: pd.Series) -> bool:
 
         row = row.rename(None, inplace=False)
@@ -168,8 +169,8 @@ class PtsBy_StudentSisId(DataBy_StudentSisId):
         floats_schema = pa.SeriesSchema(float, nullable=False)
         try:
             floats_schema.validate(row)
-        except SchemaError:
-            pass
+        except SchemaError as e:
+            print(e)
         else:
             return True
         
