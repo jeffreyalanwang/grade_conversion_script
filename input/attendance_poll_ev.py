@@ -1,5 +1,4 @@
 import pandas as pd
-from pathlib import Path
 from .base import InputHandler
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
