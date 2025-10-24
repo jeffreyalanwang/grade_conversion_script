@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import final
 
+from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
+from pathlib import Path
 import pandas as pd
+
+from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
+import numbers as num
+import pandera.pandas as pa
 from pandera.typing import DataFrame
 from grade_conversion_script.util.types import StudentPtsById
 from grade_conversion_script.util import AliasRecord
@@ -31,3 +36,29 @@ class InputHandler(ABC):
             1 column, labeled 'attendance'.
         '''
         ...
+
+@pa.check_types
+def bool_to_pts(attendance_bools: DataFrame[BoolsById], pts_if_true: num.Real) -> DataFrame[PtsBy_StudentSisId]:
+    '''
+    Replaces boolean attendence values (i.e. per-student, per-day)
+    with defined per-class point value configured with `__init__()`.
+
+    Args:
+        attendance_cols: DataFrame of only `bool` values,
+        corresponding to whether a student attended class.
+    Returns:
+        A DataFrame of same shape, index, and labels as input,
+        but with int or float values.
+    '''
+    # Create DataFrame with output type (float OR int)
+    dest_type = type(pts_if_true)
+    attendance_pts = attendance_bools.astype(dest_type) # 0s and 1s
+
+    # Fill in the points
+    attendance_pts = attendance_pts * pts_if_true
+
+    # Check output formatting
+    assert all(attendance_pts.index == attendance_bools.index)
+    assert all(attendance_pts.columns == attendance_bools.columns)
+
+    return DataFrame[PtsBy_StudentSisId](attendance_pts)

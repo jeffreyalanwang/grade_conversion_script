@@ -1,14 +1,14 @@
 import pandas as pd
 
-from grade_conversion_script.util.funcs import pd_scalar, join_str_cols
-from .base import InputHandler
-
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
-from grade_conversion_script.util.types import SisId, StudentPtsById, BoolsById
+
 from grade_conversion_script.util import AliasRecord
+from grade_conversion_script.util.types import SisId, StudentPtsById, BoolsById
+from grade_conversion_script.util.funcs import pd_scalar, join_str_cols
+from .base import InputHandler, bool_to_pts
 
 class AttendancePollEv(InputHandler):
     '''
@@ -162,15 +162,19 @@ class AttendancePollEv(InputHandler):
             The columns are in the same order as the dict's
             insertion order.
         '''
+
         # Create a column for each day of attendance.
+
         def csv_to_column(col_label, csv: pd.DataFrame) -> Series[bool]:
             attendance_df = self.get_single_day_attendance(csv) # process into bools
             series = attendance_df['attended'] # turn into series
             series.name = col_label # rename with intended column label
             return Series[bool](series)
+
         cols: Iterable[pd.Series]
         cols = (csv_to_column(day_label, csv)
                 for day_label, csv in pollev_days.items())
+
         # Merge the single-day DataFrames in the dict.
         attendance_multi_day = pd.concat(cols, axis='columns', verify_integrity=True)
         
@@ -237,6 +241,6 @@ class AttendancePollEv(InputHandler):
             attendance_bools = self.get_single_day_attendance(csv) \
                                    .rename(columns={'attended': 'attendance'})
 
-        attendance_pts = self.attendance_bool_to_pts(attendance_bools)
+        attendance_pts = bool_to_pts(attendance_bools, self.pts_per_day)
 
         return attendance_pts
