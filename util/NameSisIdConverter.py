@@ -7,6 +7,53 @@ from pandera.typing import DataFrame
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 
 class NameSisIdConverter:
+class CheckMutuallyExclusive[T]():
+    def __init__(self):
+        self._cache = dict[str, bool]()
+    def _hash(self, a: set[T], b: dict[Any, set[T]]) -> str:
+        a_hash = str(len(a)) + str(iter(a).__next__())[0:4]
+        b_hash = str(len(b)) + str(iter(b.keys()).__next__())[0:4]
+        return a_hash + b_hash
+    def _cache_result(self, a: set[T], b: dict[Any, set[T]], result: bool):
+        self._cache[self._hash(a, b)] = result
+    def _check_for_cached(self, a: set[T], b: dict[Any, set[T]]) -> bool | None:
+        return self._cache.get(self._hash(a, b), None)
+
+    def __call__(self, a, b) -> bool:
+        '''
+        Returns True if no elements of A are siblings in B,
+        and no element of A exists in multiple B collections.
+        '''
+        cached_result = self._check_for_cached(a, b)
+        if cached_result is not None:
+            return cached_result
+
+        already_seen = set[T]()
+        for b_collection in b.values():
+            members_in_a = a.intersection(b_collection)
+            if len(members_in_a) > 1:
+                self._cache_result(a, b, False)
+                return False
+            for item in members_in_a:
+                if item in already_seen:
+                    self._cache_result(a, b, False)
+                    return False
+                already_seen.add(item)
+
+        self._cache_result(a, b, True)
+        return True
+
+class IdNotFoundException(KeyError, Exception):
+    def __init__(self, id, *args, **kwargs):
+        super().__init__(f"ID {id} not found.", *args, **kwargs)
+
+class AliasNotFoundException(KeyError, Exception):
+    def __init__(self, alias: str | Iterable[str], *args, **kwargs):
+        if isinstance(alias, Iterable):
+            message = f"None of the following aliases were found: {alias}"
+        else:
+            message = f"Alias {id} not found."
+        super().__init__(message, *args, **kwargs)
     def __init__(self):
         self._name_to_sis: dict[str, SisId] = {}
         self._sis_to_name: dict[SisId, str] = {}
