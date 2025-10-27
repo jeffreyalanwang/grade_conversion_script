@@ -172,9 +172,13 @@ class CanvasGradebookOutputFormat(OutputFormat):
                 # TODO why were we accessing loc with 'i' (see original code)?
 
         assert (
-            self.gradebook.drop(self.assignment_column_label, axis='columns', inplace=False)
-            == new_gradebook.drop(self.assignment_column_label, axis='columns', inplace=False)
-        ).all(axis=None)
+            self.gradebook[[*new_gradebook.columns]]
+                .drop(self.assignment_column_label, axis='columns', inplace=False)
+            .equals(
+                new_gradebook
+                    .drop(self.assignment_column_label, axis='columns', inplace=False)
+            )
+        )
 
         return new_gradebook
     

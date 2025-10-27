@@ -11,6 +11,7 @@ from .base import OutputFormat
 
 from util import NameSisIdConverter
 from util.types import SisId, PtsBy_StudentSisId
+from util.funcs import iter_by_element, is_pd_value_present
 from util.tui import interactive_rubric_criteria_match, interactive_name_sis_id_match
 
 class CanvasEnhancedRubricOutputFormat(OutputFormat):
@@ -114,13 +115,12 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
         is_recognized_row_mask = ~(self.rubric_template['Student Name']
                                    .isin(still_unrecognized_dest_names))        
 
-        modified_rubric = self.rubric_template.copy()
-        modified_rubric = pd.concat([
+        rubric_by_sis_id = pd.concat([
             self.name_sis_id_converter.reindex_by_sis_id(
-                modified_rubric[is_recognized_row_mask],
+                self.rubric_template[is_recognized_row_mask],
                 'Student Name'
             ),
-            modified_rubric[~is_recognized_row_mask]
+            self.rubric_template[~is_recognized_row_mask]
         ])
 
         # Translate input: column label -> rubric criterion
@@ -141,23 +141,31 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
         grades.columns = grades.columns.map(given_to_dest_criteria)
         
         # Keep around intermediate copy for assert at the end
-        new_rubric = modified_rubric.copy()
+        new_rubric = rubric_by_sis_id.copy()
         
-        # Iterate by both axes in `grades` dataframe
-        grades_iterator: Iterable = \
-        (
-            (cast(SisId, student), cast(str, criterion_name), cast(num.Real, grade))
-            for student, criteria_scores
-                in grades.iterrows()
-            for criterion_name, grade
-                in criteria_scores.items()
+        # Iterate by `grades` dataframe
+        grades_iter = cast(
+            Iterable[
+                tuple[SisId, str, num.Real]
+            ],
+            iter_by_element(grades)
         )
-        for student_idx, criterion_idx, param_score in grades_iterator:
+
+        # if a student was ignored by user, do not iterate over it.
+        # otherwise, we end up searching for it in the rubric, and it
+        # might not exist.
+        grades_iter = filter(
+            lambda loc_in_grades:
+                loc_in_grades[0] not in self.name_sis_id_converter.sis_ids,
+            grades_iter
+        )
+
+        for student, criterion, param_score in grades_iter:
             # Get corresponding columns in Canvas enhanced rubric CSV
             SemanticLabel = enum.Enum('SemanticLabel', ['PTS_LABEL', 'PTS', 'COMMENTS'])
             criterion_csv_headers: dict[SemanticLabel, str] = \
             {
-                semantic_label: criterion_idx + suffix
+                semantic_label: criterion + suffix
                 for semantic_label, suffix in {
                                         # These go after the criterion name
                                         SemanticLabel.PTS_LABEL: " - Rating",
@@ -165,30 +173,21 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
                                         SemanticLabel.COMMENTS : " - Comments"
                                     }.items()
             }
-            def get_curr_val(semantic_label: SemanticLabel) -> num.Real | str:
+            def get_gradebook_curr(semantic_label: SemanticLabel) -> num.Real | str:
                 col_header = criterion_csv_headers[semantic_label]
-                value = new_rubric.at[student_idx, col_header]
+                value = new_rubric.at[student, col_header]
                 assert isinstance(value, (num.Real, str))
                 return value
-            def set_curr_val(semantic_label: SemanticLabel, value: num.Real | str):
+            def set_gradebook_curr(semantic_label: SemanticLabel, value: num.Real | str):
                 col_header = criterion_csv_headers[semantic_label]
                 cast_value = cast(float | int, value) # pyright doesn't know Real is a scalar
-                new_rubric.at[student_idx, col_header] = cast_value
+                new_rubric.at[student, col_header] = cast_value
             
             # Should we fill the current criterion for the current student?
-            def is_pd_value_present(value) -> bool:
-                if pd.isna(value):
-                    return False
-                if isinstance(value, str):
-                    if "nan" == value.lower():
-                        return False
-                    if len(value) == 0:
-                        return False
-                return True
             grade_already_present: bool = \
                 any(
-                    is_pd_value_present( get_curr_val(semantic_label) )
-                    for semantic_label in criterion_csv_headers.keys()
+                    is_pd_value_present( get_gradebook_curr(semantic_label) )
+                    for semantic_label in (SemanticLabel.PTS, SemanticLabel.COMMENTS)
                 )
             should_fill_curr = (not grade_already_present) or self.replace_existing
 
@@ -198,29 +197,29 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
                 match should_fill_curr:
                     case True:
                         message = (
-                            f'Replacing old grade of {get_curr_val(SemanticLabel.PTS)}'
-                            f' with new grade {param_score} at {student_idx},'
-                            f' {criterion_idx} (keeping Rating of "{get_curr_val(SemanticLabel.PTS_LABEL)}" '
-                            f'and Comment of "{get_curr_val(SemanticLabel.COMMENTS)}")'
+                            f'Replacing old grade of {get_gradebook_curr(SemanticLabel.PTS)}'
+                            f' with new grade {param_score} at {student},'
+                            f' {criterion} (keeping Rating of "{get_gradebook_curr(SemanticLabel.PTS_LABEL)}"'
+                            f' and Comment of "{get_gradebook_curr(SemanticLabel.COMMENTS)}")'
                         )
                     case False:
                         message = (
-                            f'Keeping old grade of {get_curr_val(SemanticLabel.PTS)}'
-                            f' at {student_idx}, {criterion_idx} (Rating'
-                            f' "{get_curr_val(SemanticLabel.PTS_LABEL)}"'
-                            f' and Comment "{get_curr_val(SemanticLabel.COMMENTS)}")'
+                            f'Keeping old grade of {get_gradebook_curr(SemanticLabel.PTS)}'
+                            f' at {student}, {criterion} (Rating'
+                            f' "{get_gradebook_curr(SemanticLabel.PTS_LABEL)}"'
+                            f' and Comment "{get_gradebook_curr(SemanticLabel.COMMENTS)}")'
                         )
                 print(message)
 
             # Fill score for curr criterion & student
             if should_fill_curr:
-                set_curr_val(SemanticLabel.PTS, param_score)
+                set_gradebook_curr(SemanticLabel.PTS, param_score)
         
         # We only touched "Points" columns that were specified in the input
         modified_columns: list[str] = [f"{criterion} - Points"
                                        for criterion in grades.columns]
         assert (
-            modified_rubric
+            rubric_by_sis_id
                 .drop(modified_columns, axis='columns', inplace=False)
         ).equals(
             new_rubric

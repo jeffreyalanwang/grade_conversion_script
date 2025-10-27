@@ -188,14 +188,28 @@ class ConsoleFrame():
 
     def _prompt(self, prompt_msg: str, check: Callable[[str], bool]) -> str:
         original_cursor_pos = get_cursor_pos()
+
         response = None
-        while not response:
-            set_cursor_pos(self.prompt_loc, 0)
+        while response is None: # empty string is fine
+            msg_loc = (self.prompt_loc, 0)
+
+            set_cursor_pos(*msg_loc)
             response = input(f"{prompt_msg}: ")
+
             if not check(response):
+                notify_message = "Invalid value. Try again. [enter]"
+
+                pre_clear = ' ' * self.terminal_width
+                post_clear = ' ' * len(notify_message)
+
+                self._print_at(pre_clear, msg_loc)
+                set_cursor_pos(*msg_loc)
+                input(notify_message)
+                    # input() => wait until user presses [enter] key
+                self._print_at(post_clear, msg_loc)
+
                 response = None
-                set_cursor_pos(self.prompt_loc, 0)
-                input("Invalid value. Try again. [enter]") #TODO terminal highlighting
+
         set_cursor_pos(*original_cursor_pos)
         return response
 
@@ -286,10 +300,27 @@ class ConsoleFrame():
         )
         self.display_finalized = True
 
+    @overload
     def prompt_selection_idx(self,
                              min: int = 0, max: Optional[int] = None,
-                             allow_none: bool = False,
+                             *,
+                             allow_none: Literal[True],
+                             prompt_header: Optional[str] = None) -> int | None:
+        ...
+    @overload
+    def prompt_selection_idx(self,
+                             min: int = 0, max: Optional[int] = None,
+                             *,
+                             allow_none: Literal[False],
                              prompt_header: Optional[str] = None) -> int:
+        ...
+    @overload
+    def prompt_selection_idx(self,
+                             min: int = 0, max: Optional[int] = None,
+                             *,
+                             prompt_header: Optional[str] = None) -> int:
+        ...
+    def prompt_selection_idx(self, min=0, max=None, *, allow_none=False, prompt_header=None) -> int | None:
         '''
         Args:
             min: Smallest allowable number (inclusive).
@@ -298,25 +329,32 @@ class ConsoleFrame():
         if prompt_header:
             self._print_at( prompt_header,
                            (self.prompt_header_loc, 0))
+        
+        prompt_text = "Select an option"
+        if allow_none:
+            prompt_text += " (or [enter] to ignore this student)"
+
+        def check_prompt_response(attempt_s: str) -> bool:
+            if allow_none and (not attempt_s):
+                return True
+            
+            if not attempt_s.isdigit():
+                return False
+            attempt_int = int(attempt_s)
+
+            if (not attempt_int >= min):
+                return False
+            if max is not None and (not attempt_int <= max):
+                return False
+            
+            return True
+
         input_s = self._prompt(
-            ("Select an option{0}"
-             .format(
-                " (or [enter] to ignore)" if allow_none else ""
-             )),
-            check = lambda attempt_s: (
-                True if allow_none else (
-                    attempt_s.isdigit()
-                    and (
-                        ( min <= int(attempt_s) )
-                    )
-                    and (
-                        ( max >= int(attempt_s) )
-                        if max is not None else True
-                    )
-                )
-            )
+            prompt_text,
+            check = check_prompt_response
         )
-        return int(input_s)
+
+        return int(input_s) if input_s else None
 
 def interactive_name_sis_id_match(out: NameSisIdConverter, *, names_to_match: Iterable[str], sis_ids_to_match: Iterable[SisId]) -> None:
     '''
@@ -349,6 +387,10 @@ def interactive_name_sis_id_match(out: NameSisIdConverter, *, names_to_match: It
             allow_none=True,
             prompt_header=f"Which matches this username? {sis_id}"
         )
+
+        if not selection_idx:
+            continue
+
         selection_idx = selection_idx - start_idx
         selection_str = names.pop(selection_idx)
 
