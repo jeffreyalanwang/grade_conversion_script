@@ -8,7 +8,7 @@ import numbers as num
 import pandera.pandas as pa
 import pandas.api.types as pd_types
 from pandera.typing import DataFrame
-from util.funcs import is_pd_scalar
+from util.funcs import is_pd_scalar, to_real_number
 from util.types import SisId, PtsBy_StudentSisId
 
 class CanvasGradebookOutputFormat(OutputFormat):
@@ -115,19 +115,27 @@ class CanvasGradebookOutputFormat(OutputFormat):
             assert SisId.validate(curr_sis_id)
             assert isinstance(param_grade, num.Real)
 
-            # Get the row of the output gradebook DataFrame
-            # which corresponds to the student.
             matching_row_idxs = \
                 new_gradebook.index[ 
                     new_gradebook['SIS Login ID'] == curr_sis_id 
                 ]
-            assert len(matching_row_idxs) == 1
+            if len(matching_row_idxs) == 0:
+                print(f"Skipping {curr_sis_id} (student not in rubric)")
+                continue
+
+            # Get the row of the output gradebook DataFrame
+            # which corresponds to the student.
+            assert (
+                (matches := len(matching_row_idxs))
+                    == 1
+            ), f"Found {curr_sis_id} {matches} times in gradebook"
             gradebook_row_idx = matching_row_idxs[0]
             gradebook_row = new_gradebook.iloc[gradebook_row_idx]
+            assert isinstance(gradebook_row, pd.Series)
             
             # Determine new grade.
-            existing_grade = gradebook_row[self.assignment_column_label]
-            if pd.isna(existing_grade):
+            existing_grade = to_real_number(gradebook_row[self.assignment_column_label])
+            if pd.isna(cast(float | int, existing_grade)):
                 new_grade = param_grade
             else:
                 match self.if_existing:

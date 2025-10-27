@@ -15,11 +15,11 @@ class NameSisIdConverter:
         return str(self._name_to_sis)
 
     @property
-    def names(self):
+    def names(self) -> set:
         return self._name_to_sis.keys()
 
     @property
-    def sis_ids(self):
+    def sis_ids(self) -> set:
         return self._sis_to_name.keys()
 
     def add(self, *, name: str, sis_id: SisId):
