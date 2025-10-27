@@ -4,7 +4,6 @@ version = "0.0.1"
 dependencies = [
   'pandas',
   'pandera',
-  'argparse',
   'colorama',
 ]
 
@@ -14,10 +13,11 @@ Repository = "https://github.com/jeffreyalanwang/grade_conversion_script.git"
 "Bug Tracker" = "https://github.com/jeffreyalanwang/grade_conversion_script/issues"
 
 [project.scripts]
-grade_conversion = "grade_conversion_script"
+grade_convert = "grade_conversion_script"
 
 [project.entry-points."test"]
 test_all = "grade_conversion_script:test_all"
 
 [project.entry-points."build"]
+requires-python = ">= 3.13"
 build = "grade_conversion_script:build"

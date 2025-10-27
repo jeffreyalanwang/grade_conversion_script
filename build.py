@@ -18,6 +18,8 @@ ignore_globs: list[str] = [
     ".gitignore",
     ".git/**",
     ".vscode/**",
+    ".idea/**",
+    ".venv/**",
     "**/__pycache__/**",
     "test_all.py",
     "build.py",
