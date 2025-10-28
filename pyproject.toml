@@ -1,15 +1,11 @@
 [project]
 name = "grade_conversion_script"
 version = "0.0.1"
-readme = "README.md"
 dependencies = [
   'pandas',
   'pandera',
   'colorama',
 ]
-
-[dependency-groups]
-build = ["build"]
 
 [project.urls]
 Homepage = "https://github.com/jeffreyalanwang/grade_conversion_script"
@@ -17,28 +13,23 @@ Repository = "https://github.com/jeffreyalanwang/grade_conversion_script.git"
 "Bug Tracker" = "https://github.com/jeffreyalanwang/grade_conversion_script/issues"
 
 [project.scripts]
-grade-convert = "grade_conversion_script:__main__"
+grade_convert = "grade_conversion_script"
 
-[tool.dev] # not a real key, just for info
-test = "test_all.py"
-build = "build.py"
+[project.entry-points."test"]
+test_all = "grade_conversion_script:test_all"
 
-[tool.setuptools.packages.find]
-include = [
-    "grade_conversion_script",
-    # top-level packages
-    "grade_conversion_script.input", "grade_conversion_script.output", "grade_conversion_script.util",
-    # top-level modules
-    "grade_conversion_script.bootstrap_utils", "grade_conversion_script.cmd_opts"
-]
-exclude = [".*", "dist*", "*test*", "*build.py"]
+[project.entry-points."build"]
+requires-python = ">= 3.13"
+build = "grade_conversion_script:build"
 
 [tool.pyright]
 # Specify the type checking mode. Options include "off", "basic", "standard", "strict", "recommended", and "all".
 typeCheckingMode = "recommended"
+
 # Configure virtual environment settings if applicable.
 venvPath = "."
 venv = ".venv"
+
 # Override specific diagnostic rules.
 reportImplicitStringConcatenation = false
 reportInvalidCast = "hint"
