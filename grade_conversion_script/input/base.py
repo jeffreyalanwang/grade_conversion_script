@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from pandera.typing import DataFrame
 from grade_conversion_script.util.types import PtsBy_StudentSisId
-from grade_conversion_script.util import NameSisIdConverter
+from grade_conversion_script.util import AliasRecord
 
 class InputHandler(ABC):
     '''

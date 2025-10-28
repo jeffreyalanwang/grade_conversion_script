@@ -15,7 +15,7 @@ if (sys.platform == "win32"):
 else:
     import termios
 
-from grade_conversion_script.util import NameSisIdConverter
+from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.types import SisId
 
 def center_text(text: str, line_width: int, padding_char: str) -> str:

@@ -6,7 +6,7 @@ import numbers as num
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
 from grade_conversion_script.util.types import SisId, PtsBy_StudentSisId, BoolsBy_StudentSisId
-from grade_conversion_script.util import NameSisIdConverter
+from grade_conversion_script.util import AliasRecord
 
 class AttendancePollEv(InputHandler):
     '''
