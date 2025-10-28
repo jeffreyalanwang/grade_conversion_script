@@ -5,7 +5,7 @@ from pandas._typing import Scalar as pd_scalar
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 
-def add_tuples[T: tuple](a: T, b: T) -> T:
+def add_tuples[T: tuple[Any, ...]](a: T, b: T) -> T:
     ''' Add two tuples element-wise. '''
     sum_elements = (
         element_a + element_b
