@@ -1,46 +1,12 @@
-import re
-
+from enum import Enum
 import pandas as pd
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import pandera.pandas as pa
 from pandera.errors import SchemaError
-import numbers as num
 
 class SisId(str):
     ''' A Canvas SIS Login ID (i.e. UNC Charlotte username) '''
-    
-    def __new__(cls, value):
-        if cls.validate(value) != True:
-            raise ValueError(f"Not a valid SIS ID: {value}")
-        return super().__new__(cls, value)
-
-    @classmethod
-    def validate(cls, instance: Any) -> TypeGuard[Self]:
-        '''
-        sis_id is a UNC Charlotte email without the @charlotte.edu
-        >>> SisId.validate(True)
-        False
-        >>> SisId.validate("mname3")
-        True
-        >>> SisId.validate("mname")
-        True
-        >>> SisId.validate("3")
-        False
-        '''
-        
-        if not isinstance(instance, str):
-            return False
-
-        if '@' in instance:
-            return False
-        
-        pattern: re.Pattern = re.compile(r'[a-z]+[0-9]*')
-        if (not pattern.fullmatch(instance)):
-            return False
-
-        return True
-
     @classmethod
     def from_email(cls, email: str) -> Self:
         '''
@@ -56,7 +22,11 @@ class SisId(str):
                               "Try modifying or removing from dataset.")
         
         return cls(sis_login_id)
-    
+
+IndexFlag = Enum('Index', 'Index')
+Index = IndexFlag.Index
+
+# TODO rename + refactor to eliminate SisId
 class DataBy_StudentSisId(pa.DataFrameModel):
     '''
     Models any DataFrame whose index is all instances of `SisId`.
