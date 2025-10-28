@@ -7,7 +7,7 @@ import pandera.pandas as pa
 from pandera.typing import DataFrame
 
 from util.types import PtsBy_StudentSisId, DataBy_StudentSisId
-from util import NameSisIdConverter
+from util import AliasRecord
 
 class AcrOutputFormat(OutputFormat):
     '''

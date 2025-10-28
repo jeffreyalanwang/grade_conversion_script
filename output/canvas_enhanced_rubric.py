@@ -9,7 +9,7 @@ from pandera.typing import DataFrame
 
 from .base import OutputFormat
 
-from util import NameSisIdConverter
+from util import AliasRecord
 from util.types import SisId, PtsBy_StudentSisId
 from util.funcs import iter_by_element, is_pd_value_present
 from util.tui import interactive_rubric_criteria_match, interactive_name_sis_id_match

@@ -5,7 +5,7 @@ import pandas as pd
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 
-from util import EnumAction, NameSisIdConverter
+from util import EnumAction, AliasRecord
 from util.funcs import to_real_number
 from input import *
 from output import *

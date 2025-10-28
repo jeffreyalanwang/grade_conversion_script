@@ -15,7 +15,7 @@ if (sys.platform == "win32"):
 else:
     import termios
 
-from util import NameSisIdConverter
+from util import AliasRecord
 from util.types import SisId
 
 def center_text(text: str, line_width: int, padding_char: str) -> str:

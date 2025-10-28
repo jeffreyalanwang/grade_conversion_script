@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 from pandera.typing import DataFrame
 from util.types import PtsBy_StudentSisId
-from util import NameSisIdConverter
+from util import AliasRecord
 
 class InputHandler(ABC):
     '''
