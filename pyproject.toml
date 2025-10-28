@@ -21,3 +21,15 @@ test_all = "grade_conversion_script:test_all"
 [project.entry-points."build"]
 requires-python = ">= 3.13"
 build = "grade_conversion_script:build"
+
+[tool.pyright]
+# Specify the type checking mode. Options include "off", "basic", "standard", "strict", "recommended", and "all".
+typeCheckingMode = "recommended"
+
+# Configure virtual environment settings if applicable.
+venvPath = "."
+venv = ".venv"
+
+# Override specific diagnostic rules.
+reportImplicitStringConcatenation = false
+reportInvalidCast = "hint"
