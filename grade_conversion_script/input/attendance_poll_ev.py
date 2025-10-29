@@ -29,10 +29,52 @@ class AttendancePollEv(InputHandler):
     "{'Name One': 'name1', 'Name Two': 'name2'}"
     '''
 
-    def __init__(self, pts_per_day: num.Real, name_sis_id_store: NameSisIdConverter):
+    def __init__(
+        self,
+        pts_per_day: num.Real,
+        name_sis_id_store: NameSisIdConverter,
+        attendance_rule: Callable[
+                             [pd.DataFrame | pd.Series],
+                             Series[bool] | bool
+                         ] | None
+            = None
+    ):
         ''' Set options which vary among input-handlers here. '''
         super().__init__(name_sis_id_store)
         self.pts_per_day = pts_per_day
+        if attendance_rule is not None:
+            self.has_attended = attendance_rule # pyright: ignore[reportAttributeAccessIssue]
+
+    @overload
+    def is_attended(self, student_rows: pd.DataFrame, /) -> Series[bool]:
+        ...
+
+    @overload
+    def is_attended(self, student_rows: pd.Series, /) -> bool:
+        ...
+    def is_attended(self, student_rows: pd.DataFrame | pd.Series, /) -> Series[bool] | bool:
+        '''
+        Check rule is defined here.
+
+        May be overridden by `self.__init__()`.
+        '''
+        numeric_grades: pd.Series | num.Real = pd.to_numeric(student_rows['Grade'], errors="coerce")
+        is_na = pd.isna(numeric_grades)
+        is_pos = numeric_grades > 0
+
+        if isinstance(numeric_grades, pd.DataFrame):
+            assert isinstance(is_na, pd.Series)
+            assert isinstance(is_pos, pd.Series)
+            truthy = (~is_na) & is_pos
+        else:
+            assert isinstance(is_na, bool)
+            assert isinstance(is_pos, bool)
+            truthy = (not is_na) and is_pos
+
+        if isinstance(truthy, pd.Series):
+            return Series[bool](truthy)
+        else:
+            return truthy
 
     @pa.check_types
     def get_single_day_attendance(self, pollev_day: pd.DataFrame) -> DataFrame[BoolsBy_StudentSisId]:
@@ -57,22 +99,18 @@ class AttendancePollEv(InputHandler):
                     for row_label in average_rows_column1 )
 
         # Determine attendance by student
-        def has_attended(student_row) -> bool:
-            # check rule is defined here
-            grade = student_row['Grade']
-            if isinstance(grade, str) and grade.startswith("'"):
-                grade = grade[1:]
-            return bool(grade) and (float(grade) != 0)
         attendance = student_rows \
                         .apply(
-                            has_attended,
+                            self.has_attended,
                             axis='columns' # passes one row to function at a time
-                        )
+                        ).squeeze()
+        assert isinstance(attendance, pd.Series)
         
         # Output formatting
         student_names: pd.Series = student_rows['First name'] + ' ' + student_rows['Last name']
         sis_ids = student_rows['Email'] \
-                    .apply(lambda x: SisId.from_email(x) if not pd.isna(x) else None)
+                    .apply(lambda x: SisId.from_email(x)
+                                     if not pd.isna(x) else None)
         # drop NaNs before we reindex
         to_drop = student_names.isna() | sis_ids.isna()
         sis_ids = sis_ids[~to_drop]
