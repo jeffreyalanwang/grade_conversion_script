@@ -17,7 +17,7 @@ Repository = "https://github.com/jeffreyalanwang/grade_conversion_script.git"
 "Bug Tracker" = "https://github.com/jeffreyalanwang/grade_conversion_script/issues"
 
 [project.scripts]
-grade-convert = "grade_conversion_script:__main__"
+grade-convert = "grade_conversion_script.__main__:main"
 
 [tool.dev] # not a real key, just for info
 test = "test_all.py"
