@@ -28,7 +28,7 @@ def create_output_file(scores: DataFrame[PtsBy_StudentSisId], handler: OutputFor
     out_df = handler.format(scores)
     handler.write_file(out_df, filepath)
 
-if __name__ == '__main__':
+def main():
     from cmd_opts import run as get_cmd_setup
 
     handlers, files_str = get_cmd_setup() # argparse reads cmd args
@@ -56,3 +56,6 @@ if __name__ == '__main__':
         raise NotImplementedError
     create_output_file(data, handlers.output, output_file_path)
     print(f"Result saved to {output_file_path}.")
+
+if __name__ == '__main__':
+    main()

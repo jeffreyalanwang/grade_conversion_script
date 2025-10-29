@@ -57,6 +57,13 @@ def ensure_pkg_dependencies():
     using data from top-level `pyproject.toml`.
     '''
     from importlib import import_module
+
+    if "pyproject.toml" not in (
+        path.name
+        for path in get_top_level_dir().iterdir()  # iterdir is non-recursive
+    ):
+        # built wheels might not include this file
+        return
     
     dependencies = get_pkg_dependencies()
 
