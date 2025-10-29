@@ -9,6 +9,7 @@ dependencies = [
 ]
 
 [dependency-groups]
+test = ["pytest"]
 build = ["build"]
 
 [project.urls]
