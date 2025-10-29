@@ -44,13 +44,13 @@ Save result to `./output.csv`.
 
 > It may be easiest to copy the code for an existing input or output module, for each of the following steps.
 
-1. In [input/](/input/) or [output/](/output/), create a new module.
+1. In [input/](/grade_conversion_script/input/) or [output/](/grade_conversion_script/output/), create a new module.
 
 2. Write a new class extending the class in the sibling `.base` module.
 
 3. Add the class in the sibling `__init__.py`.
 
-4. Finally, modify [cmd_opts.py](/cmd_opts.py) to add command-line options.
+4. Finally, modify [cmd_opts.py](/grade_conversion_script/cmd_opts.py) to add command-line options.
     * See `configure_input_parser()` or `configure_output_parser()` \
       to add flags/options.
     * See `_prepare_input_handler()` and `_prepare_output_handler()` \

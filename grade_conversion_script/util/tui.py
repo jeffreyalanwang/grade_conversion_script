@@ -15,8 +15,8 @@ if (sys.platform == "win32"):
 else:
     import termios
 
-from util import NameSisIdConverter
-from util.types import SisId
+from grade_conversion_script.util import NameSisIdConverter
+from grade_conversion_script.util.types import SisId
 
 def center_text(text: str, line_width: int, padding_char: str) -> str:
     ''' If it must, centered text will be one char closer to the left side. '''

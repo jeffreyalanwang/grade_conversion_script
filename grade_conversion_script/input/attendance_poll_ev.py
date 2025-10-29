@@ -5,8 +5,8 @@ from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
-from util.types import SisId, PtsBy_StudentSisId, BoolsBy_StudentSisId
-from util import NameSisIdConverter
+from grade_conversion_script.util.types import SisId, PtsBy_StudentSisId, BoolsBy_StudentSisId
+from grade_conversion_script.util import NameSisIdConverter
 
 class AttendancePollEv(InputHandler):
     '''

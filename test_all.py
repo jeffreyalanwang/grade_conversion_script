@@ -7,8 +7,8 @@ from importlib import import_module
 from pkgutil import ModuleInfo
 from types import ModuleType
 
-from bootstrap_utils import get_top_level_dir
-from util.funcs import add_tuples
+from grade_conversion_script.bootstrap_utils import get_top_level_dir
+from grade_conversion_script.util import add_tuples
 
 import doctest
 

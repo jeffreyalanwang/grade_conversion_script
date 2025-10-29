@@ -46,7 +46,7 @@ def parse_args() -> tuple[Namespace, Namespace]:
             # add default for any subparser that takes these args
             input_csvs=[# all files in directory
                         item.name
-                        for item in Path(".").iterdir()
+                        for item in Path("..").iterdir()
                         if item.is_file()]
         )
 

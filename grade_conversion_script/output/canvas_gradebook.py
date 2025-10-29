@@ -6,10 +6,9 @@ from .base import OutputFormat
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
-import pandas.api.types as pd_types
 from pandera.typing import DataFrame
-from util.funcs import is_pd_scalar, to_real_number
-from util.types import SisId, PtsBy_StudentSisId
+from grade_conversion_script.util.funcs import is_pd_scalar, to_real_number
+from grade_conversion_script.util.types import SisId, PtsBy_StudentSisId
 
 class CanvasGradebookOutputFormat(OutputFormat):
     '''

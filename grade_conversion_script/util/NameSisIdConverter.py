@@ -1,4 +1,4 @@
-from util.types import DataBy_StudentSisId, SisId
+from grade_conversion_script.util.types import DataBy_StudentSisId, SisId
 
 import pandas as pd
 import pandera.pandas as pa
