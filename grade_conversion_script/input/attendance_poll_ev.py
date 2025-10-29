@@ -101,7 +101,7 @@ class AttendancePollEv(InputHandler):
         # Determine attendance by student
         attendance = student_rows \
                         .apply(
-                            self.is_attended,
+                            self.has_attended,
                             axis='columns' # passes one row to function at a time
                         ).squeeze()
         assert isinstance(attendance, pd.Series)
