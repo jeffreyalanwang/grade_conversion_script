@@ -6,8 +6,8 @@ from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import pandera.pandas as pa
 from pandera.typing import DataFrame
 
-from util.types import PtsBy_StudentSisId, DataBy_StudentSisId
-from util import AliasRecord
+from grade_conversion_script.util.types import PtsBy_StudentSisId, DataBy_StudentSisId
+from grade_conversion_script.util import NameSisIdConverter
 
 class AcrOutputFormat(OutputFormat):
     '''

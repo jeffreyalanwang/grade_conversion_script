@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
 
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
-from pathlib import Path
 import pandas as pd
 from pandera.typing import DataFrame
-from util.types import PtsBy_StudentSisId
-from util import AliasRecord
+from grade_conversion_script.util.types import PtsBy_StudentSisId
+from grade_conversion_script.util import NameSisIdConverter
 
 class InputHandler(ABC):
     '''

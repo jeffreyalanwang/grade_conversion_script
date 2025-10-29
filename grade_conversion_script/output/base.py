@@ -3,9 +3,8 @@ import pandas as pd
 
 from abc import ABC, abstractmethod
 
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 from pandera.typing import DataFrame
-from util.types import PtsBy_StudentSisId
+from grade_conversion_script.util.types import PtsBy_StudentSisId
 
 class OutputFormat(ABC):
     '''

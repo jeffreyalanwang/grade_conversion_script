@@ -4,6 +4,8 @@ Tools which must be available early on, before importing unrelated packages.
 
 def get_top_level_dir():
     '''
+    Points to top-level of package, not repository.
+
     Note: might point to a zip file.
     '''
     from pathlib import Path
@@ -26,6 +28,9 @@ def get_top_level_dir():
     return top_level_dir
 
 def get_pkg_dependencies():
+    '''
+    Only works if dependencies are defined in `pyproject.toml`.
+    '''
     import tomllib
     from zipfile import ZipFile, is_zipfile
 
@@ -42,6 +47,10 @@ def get_pkg_dependencies():
             pyproject_toml = tomllib.load(toml_file)
     else:
         pyproject_toml_path = top_level_dir_path.joinpath(pyproject_toml_filename)
+        if not pyproject_toml_path.is_file():
+            pyproject_toml_path = top_level_dir_path.parent.joinpath(pyproject_toml_filename)
+            if not pyproject_toml_path.is_file():
+                raise FileNotFoundError(f"Could not find pyproject.toml.")
         with open(pyproject_toml_path, "rb") as toml_file:
             pyproject_toml = tomllib.load(toml_file)
 

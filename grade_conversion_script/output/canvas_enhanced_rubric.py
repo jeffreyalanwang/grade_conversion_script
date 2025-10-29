@@ -9,10 +9,10 @@ from pandera.typing import DataFrame
 
 from .base import OutputFormat
 
-from util import AliasRecord
-from util.types import SisId, PtsBy_StudentSisId
-from util.funcs import iter_by_element, is_pd_value_present
-from util.tui import interactive_rubric_criteria_match, interactive_name_sis_id_match
+from grade_conversion_script.util import NameSisIdConverter
+from grade_conversion_script.util.types import SisId, PtsBy_StudentSisId
+from grade_conversion_script.util.funcs import iter_by_element, is_pd_value_present
+from grade_conversion_script.util.tui import interactive_rubric_criteria_match, interactive_name_sis_id_match
 
 class CanvasEnhancedRubricOutputFormat(OutputFormat):
     '''
