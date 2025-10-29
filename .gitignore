@@ -4,3 +4,4 @@
 
 # Build artifacts
 dist/
+*.egg-info

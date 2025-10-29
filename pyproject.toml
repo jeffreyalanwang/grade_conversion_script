@@ -2,15 +2,15 @@
 name = "grade_conversion_script"
 version = "0.0.1"
 readme = "README.md"
+requires-python = ">= 3.12"
 dependencies = [
   'pandas',
   'pandera',
   'colorama',
 ]
 
-[dependency-groups]
-test = ["pytest"]
-build = ["build"]
+[project.optional-dependencies]
+dev = ["pytest", "build"]
 
 [project.urls]
 Homepage = "https://github.com/jeffreyalanwang/grade_conversion_script"
