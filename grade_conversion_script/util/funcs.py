@@ -20,11 +20,12 @@ def to_real_number(value: Any) -> num.Real:
         out = int(value)
     return cast(num.Real, out)
 
-def iter_by_element(df: pd.DataFrame) -> Iterable[Tuple[Hashable, Hashable, pd_scalar]]:
+Enumerated2D = NamedTuple('Index2D', [("row", Hashable), ("col", Hashable), ("val", pd_scalar)])
+def iter_by_element(df: pd.DataFrame) -> Iterable[Enumerated2D]:
     ''' Iterate a DataFrame by row index, colum index, and value. '''
     for row_idx, row_values in df.iterrows():
         for col_idx, value in row_values.items():
-            yield (row_idx, col_idx, value)
+            yield Enumerated2D(row_idx, col_idx, value)
 
 def is_pd_scalar(obj: Any) -> TypeGuard[pd_scalar]:
     return pd.api.types.is_scalar(obj)

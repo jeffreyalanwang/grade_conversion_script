@@ -50,8 +50,8 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
     >>> new_csv = cerubric_output.format(grades)
     Keeping old grade of 5 at name1, Criterion 2 (Rating "" and Comment "excused")
     >>> new_csv[['Student Name', 'Criterion 1 - Points', 'Criterion 2 - Points']]
-           Student Name Criterion 1 - Points  Criterion 2 - Points
-    name1      Name One                    3                     5
+          Student Name Criterion 1 - Points  Criterion 2 - Points
+    name1     Name One                    3                     5
     '''
 
     def __init__(
@@ -147,12 +147,7 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
         new_rubric = rubric_by_sis_id.copy()
         
         # Iterate by `grades` dataframe
-        grades_iter = cast(
-            Iterable[
-                tuple[SisId, str, num.Real]
-            ],
-            iter_by_element(grades)
-        )
+        grades_iter = iter_by_element(grades)
 
         # if a student was ignored by user, do not iterate over it.
         # otherwise, we end up searching for it in the rubric, and it
@@ -190,7 +185,7 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
             grade_already_present: bool = \
                 any(
                     is_pd_value_present( get_gradebook_curr(semantic_label) )
-                    for semantic_label in (SemanticLabel.PTS, SemanticLabel.COMMENTS)
+                    for semantic_label in (SemanticLabel.PTS, SemanticLabel.COMMENTS) # ignore Rating label
                 )
             should_fill_curr = (not grade_already_present) or self.replace_existing
 
