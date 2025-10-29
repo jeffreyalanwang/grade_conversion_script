@@ -1,6 +1,6 @@
 import pandas as pd
 import pandera.pandas as pa
-from pandera.typing import DataFrame
+from pandera.typing import DataFrame, Series
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 from util.types import IndexFlag, DataBy_StudentSisId
@@ -189,7 +189,7 @@ class AliasRecord:
             alias_col: KT | Sequence[KT],
             expect_new: bool = False,
             collect_new: bool = True,
-    ) -> pd.Series[int]:
+    ) -> Series[int]:
 
         alias_cols: Sequence[KT]
         if (
@@ -220,7 +220,7 @@ class AliasRecord:
                 case Hashable():
                     assert col in df.columns
 
-        id_series = pd.Series[int](name="id", dtype=int, index=df.index)
+        id_series = Series[int](name="id", dtype=int, index=df.index)
 
         priority_aliases_df = pd.concat(
             {
@@ -256,7 +256,7 @@ class AliasRecord:
 
             id_series.at[row_idx] = id
 
-        return id_series
+        return Series[int](id_series)
 
     @pa.check_types
     def reindex_by_id[KT: Hashable | IndexFlag | pd.Series](
