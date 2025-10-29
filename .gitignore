@@ -1,17 +1,6 @@
-
-*__pycache__
+# Python working files
+*__pycache__/
 .venv/
 
 # Build artifacts
 dist/
-
-# External packages (dependencies) are
-# installed by build process as directories
-# under top level
-mypy_extensions.py
-typing_inspect.py
-typing_extensions.py
-*/
-!input/
-!output/
-!util/
