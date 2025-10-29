@@ -12,8 +12,6 @@ to convert grades from one .csv format to another.
     <br/> (likely the case if running on Linux).
     </i>
 
-    <br/>
-
     **Mac**
     ```zsh
     # if homebrew not installed
