@@ -1,3 +1,5 @@
+# pyright: reportPossiblyUnboundVariable=false
+
 from itertools import chain
 from math import ceil, floor
 import re
@@ -14,9 +16,6 @@ if (sys.platform == "win32"):
     import ctypes.wintypes
 else:
     import termios
-
-from grade_conversion_script.util import AliasRecord
-from grade_conversion_script.util.types import SisId
 
 def center_text(text: str, line_width: int, padding_char: str) -> str:
     ''' If it must, centered text will be one char closer to the left side. '''
@@ -56,7 +55,7 @@ def wrap_line(text: str, max_width: int) -> Iterable[str]:
 def get_cursor_pos() -> tuple[int, int]:
     # https://stackoverflow.com/questions/35526014/how-can-i-get-the-cursors-position-in-an-ansi-terminal
     
-    if (sys.platform == "win32"): # TODO try getting rid of win32 references in this function, thanks to colorama.init()
+    if (sys.platform == "win32"):
         OldStdinMode = ctypes.wintypes.DWORD()
         OldStdoutMode = ctypes.wintypes.DWORD()
         kernel32 = ctypes.windll.kernel32
@@ -82,7 +81,7 @@ def get_cursor_pos() -> tuple[int, int]:
             kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), OldStdinMode)
             kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), OldStdoutMode)
         else:
-            termios.tcsetattr(sys.stdin, termios.TCSAFLUSH, OldStdinMode)
+            termios.tcsetattr(sys.stdin, termios.TCSAFLUSH, OldStdinMode)  # pyright: ignore[reportArgumentType]
             
     if (res):
         x_str = res.group("x")
@@ -92,7 +91,7 @@ def get_cursor_pos() -> tuple[int, int]:
 
 def set_cursor_pos(line: int, col: int) -> None:
     ensure_colorama_init()
-    sys.stdout.write("\033[%d;%dH" % (line, col))    
+    sys.stdout.write("\033[%d;%dH" % (line, col))
 
 
 colorama_initialized = False
@@ -110,10 +109,10 @@ class ConsoleFrame():
     '''
 
     def __init__(self, prompt_header=False):
-        self._prompt_height = 2 # see prompt_loc()
-        self._prompt_header_height = 1 if prompt_header else None
-        self.display_finalized = False
-        self.used_lines = 0
+        self._prompt_height: int = 2 # see prompt_loc()
+        self._prompt_header_height: int | None = 1 if prompt_header else None
+        self.display_finalized: bool = False
+        self.used_lines: int = 0
 
     @property
     def terminal_width(self) -> int:
@@ -356,46 +355,51 @@ class ConsoleFrame():
 
         return int(input_s) if input_s else None
 
-def interactive_name_sis_id_match(out: NameSisIdConverter, *, names_to_match: Iterable[str], sis_ids_to_match: Iterable[SisId]) -> None:
+def interactive_alias_match(user: Collection[str], dest: Collection[str]) -> dict[str, str]:
     '''
-    Ask the user to match student names and SIS IDs.
+    Ask the user to match student names.
     Stores provided info persistently in provided data structure.
 
-    Not all names or SIS IDs are necessarily matched.
-    However, no names or SIS IDs should have existing mappings in `out`. TODO wtf
-
-    Args:
-        names_to_match:
-            Student names which do not have a known corresponding SIS ID.
-        sis_ids_to_match:
-            SIS IDs which do not have a known corresponding name.
-        out:
-            Record in which to store new mappings.
+    Not all names are necessarily matched.
     '''
-    sis_ids_to_match = list(sis_ids_to_match) # we need its length
-    names = list(names_to_match) # we need to mutate for internal processing
-    for i, sis_id in enumerate(sis_ids_to_match):
+    user = list(user)
+    dest = list(dest)
+    out = dict[str, str]() # keys: user; vals: dest
+
+    if len(user) < len(dest):
+        frames_by, select_from = user, dest
+        def save(frame_alias: str, selected_alias: str):
+            # frame_alias is user alias
+            out[frame_alias] = selected_alias
+    else:
+        frames_by, select_from = dest, user
+        def save(frame_alias: str, selected_alias: str):
+            # selected_alias is user alias
+            out[selected_alias] = frame_alias
+
+    for i, curr_alias in enumerate(frames_by):
         screen = ConsoleFrame(prompt_header=True)
-        screen.print_header(f"Student name matching ({i}/{len(sis_ids_to_match)})")
+        screen.print_header(f"Student name matching ({i}/{len(frames_by)})")
         start_idx = 1
-        screen.print_enumerated(names, start_idx)
+        screen.print_enumerated(select_from, start_idx)
         screen.display_complete()
 
         selection_idx = screen.prompt_selection_idx(
             start_idx,
-            start_idx + len(names) - 1,
+            start_idx + len(select_from) - 1,
             allow_none=True,
-            prompt_header=f"Which matches this username? {sis_id}"
+            prompt_header=f"Which matches this student? {curr_alias}"
         )
 
         if not selection_idx:
             continue
 
         selection_idx = selection_idx - start_idx
-        selection_str = names.pop(selection_idx)
+        selection_str = select_from.pop(selection_idx)
 
-        out.add(name=selection_str, sis_id=sis_id)
+        save(curr_alias, selection_str)
 
+    return out
 
 def interactive_rubric_criteria_match(given_labels: Iterable[str], dest_labels: Iterable[str]) -> dict[str, str]:
     '''

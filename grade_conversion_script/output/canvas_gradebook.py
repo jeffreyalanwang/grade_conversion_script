@@ -1,14 +1,18 @@
 import enum
+import inspect
 import pandas as pd
 from pathlib import Path
-from .base import OutputFormat
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
-import numbers as num
 import pandera.pandas as pa
 from pandera.typing import DataFrame
-from grade_conversion_script.util.funcs import is_pd_scalar, to_real_number
-from grade_conversion_script.util.types import SisId, PtsBy_StudentSisId
+
+from .base import OutputFormat
+
+from grade_conversion_script.util import AliasRecord
+from grade_conversion_script.util.funcs import associate_unrecognized_entities, best_effort_is_name, contains_row_for, reindex_to
+from grade_conversion_script.util.types import Matcher, StudentPtsById
+from grade_conversion_script.util.tui import interactive_alias_match
 
 class CanvasGradebookOutputFormat(OutputFormat):
     '''
@@ -43,6 +47,9 @@ class CanvasGradebookOutputFormat(OutputFormat):
         ERROR = enum.auto()
 
     def __init__(self, gradebook_csv: pd.DataFrame, assignment_header: str,
+                 student_aliases: AliasRecord,
+                 unrecognized_name_match: Matcher[str, str] = interactive_alias_match,
+                 *,
                  sum: bool = False,
                  if_existing: ReplaceBehavior = ReplaceBehavior.ERROR,
                  warn_existing: bool = True):
@@ -50,6 +57,9 @@ class CanvasGradebookOutputFormat(OutputFormat):
         Args:
             gradebook_csv:
                 Direct CSV-read DataFrame of a Canvas exported gradebook.
+                Columns of the input grades CSV file that are
+                required to update the attendance assignment on Canvas.
+                # See https://community.canvaslms.com/t5/Instructor-Guide/How-do-I-import-grades-in-the-Gradebook/ta-p/807.
             assignment_header:
                 The header label for the CSV gradebook column
                 corresponding to this assignment's points.
@@ -65,7 +75,7 @@ class CanvasGradebookOutputFormat(OutputFormat):
                 If True, then when modifying a student's existing grade
                 for an assignment, notify with a message to the console.
         '''
-        super().__init__()
+        super().__init__(student_aliases)
 
         self.gradebook = gradebook_csv
 
@@ -78,9 +88,95 @@ class CanvasGradebookOutputFormat(OutputFormat):
         self.if_existing = if_existing
         self.warn_existing = warn_existing
 
+        self.unrecognized_name_match = unrecognized_name_match
+
+    def merge_conflict_values(self, existing: pd.Series, incoming: pd.Series, index_to_alias_id: pd.Series) -> tuple[pd.Series, str | None] | NoReturn:
+        '''
+        Args should have identical indices
+        and be only the conflicting region
+        of the full "existing" df.
+
+        Returns:
+        * Same-indexed series as args,
+            with values to set in parent DataFrame.
+        * Message to print if user requested warnings for conflicts.
+        '''
+        # constants
+        subline_start = "\n    "
+        tab = "\t"
+        def conflicts_detail():
+            for idx, row in pd.DataFrame({"existing": existing, "incoming": incoming}).itertuples():
+                alias_id = index_to_alias_id[idx]
+                assert isinstance(alias_id, int)
+                student_name = self.student_aliases.best_effort_alias(best_effort_is_name, id=alias_id)
+                yield (row.existing, row.incoming, student_name)
+
+        assert existing.index.equals(incoming.index)
+
+        if existing.empty:
+            return (existing, None)
+
+        match self.if_existing:
+            case self.ReplaceBehavior.REPLACE:
+                values = incoming
+                message = subline_start.join((
+                    f"Replacing existing grade values:",
+                    *(
+                        tab.join((
+                            f"{existing_val}",
+                            f"(new: {new_val},",
+                            f"student: {student_name})",
+                        ))
+                        for existing_val, new_val, student_name
+                        in conflicts_detail()
+                    )
+                ))
+            case self.ReplaceBehavior.PRESERVE:
+                values = existing
+                message = subline_start.join((
+                    f"Preserving existing grade values:",
+                    *(
+                        tab.join((
+                            f"{existing_val}",
+                            f"(student: {student_name})",
+                        ))
+                        for existing_val, _, student_name
+                        in conflicts_detail()
+                    )
+                ))
+            case self.ReplaceBehavior.INCREMENT:
+                values = existing.to_numeric(errors='raise') + incoming.to_numeric(errors='raise')
+                message = subline_start.join((
+                    f"Incrementing existing grade values:",
+                    *(
+                        tab.join((
+                            f"{existing_val}",
+                            f"(adding: {new_val},",
+                            f"student: {student_name})",
+                        ))
+                        for existing_val, new_val, student_name
+                        in conflicts_detail()
+                    )
+                ))
+            case self.ReplaceBehavior.ERROR:
+                message = subline_start.join((
+                    f"Unexpected existing grade values:",
+                    *(
+                        tab.join((
+                            f"{existing_val}",
+                            f"(student: {student_name})",
+                        ))
+                        for existing_val, _, student_name
+                        in conflicts_detail()
+                    )
+                ))
+                raise ValueError(message)
+            
+        return (values, message if self.warn_existing else None)
+
     @override
     @pa.check_types
-    def format(self, grades: DataFrame[PtsBy_StudentSisId]) -> pd.DataFrame:
+    def format(self, grades: DataFrame[StudentPtsById]) -> pd.DataFrame:
         '''
         Note: rounds the student's previous grade.
         Args:
@@ -92,84 +188,70 @@ class CanvasGradebookOutputFormat(OutputFormat):
             if self.sum:
                 grades = DataFrame(grades.sum(axis='columns'))
             else:
-                raise ValueError("See this method's docstring")
+                raise ValueError(
+                    "Too many columns. See this method's docstring:"
+                    "\n" + str(inspect.getdoc(self.format))
+                )
 
-        # Prepare input
-        one_col_grades = grades.squeeze('columns') # create a series
-        assert isinstance(one_col_grades, pd.Series) # make sure we didn't squeeze into a DataFrame or scalar
-        # Prepare output
-            # Make a copy of the columns of the input grades CSV file that are
-            # required to update the attendance assignment on Canvas.
+        # Prepare input Series (grades)
+        grades_series = grades.squeeze('columns') # create a series
+        assert isinstance(grades_series, pd.Series) # make sure we didn't squeeze into a DataFrame or scalar
+
+        # Prepare output DataFrame (new_gradebook)
+        new_gradebook = self.gradebook[[
             # See https://community.canvaslms.com/t5/Instructor-Guide/How-do-I-import-grades-in-the-Gradebook/ta-p/807.
-        desired_cols = ('Student', 'ID', 'SIS Login ID', 'Section', self.assignment_column_label)
-        available_desired_cols = filter(
-            lambda col_name: col_name in desired_cols,
-            self.gradebook.columns
+            'Student', 'ID', 'SIS Login ID', 'Section',
+            self.assignment_column_label
+        ]].copy()
+
+        # Perform name/id matching
+        gb_alias_cols = ['Student', 'SIS Login ID']
+        associate_unrecognized_entities(
+            self.student_aliases,
+            self.unrecognized_name_match,
+            input_ids=grades.index,
+            dest_alias_lists=(
+                list[str](series)
+                for _, series in new_gradebook[gb_alias_cols].iterrows()
+            )
         )
-        new_gradebook = self.gradebook[[*available_desired_cols]].copy()
 
-        # Iterate by student
-        for curr_sis_id, param_grade in one_col_grades.items():
-            # Establish types
-            assert SisId.validate(curr_sis_id)
-            assert isinstance(param_grade, num.Real)
+        # Reindex grades to align with output
+        id_by_gb_row = self.student_aliases.id_of_df(
+            new_gradebook,
+            gb_alias_cols,
+            expect_new_entities=True,
+            collect_new_aliases=True
+        )
+        incoming_grades_aligned = reindex_to(
+            to_realign=grades_series,
+            target_ids=id_by_gb_row
+        )
 
-            matching_row_idxs = \
-                new_gradebook.index[ 
-                    new_gradebook['SIS Login ID'] == curr_sis_id 
-                ]
-            if len(matching_row_idxs) == 0:
-                print(f"Skipping {curr_sis_id} (student not in rubric)")
-                continue
+        # Resolve + Set values (handle if_existing, warn_existing)
 
-            # Get the row of the output gradebook DataFrame
-            # which corresponds to the student.
-            assert (
-                (matches := len(matching_row_idxs))
-                    == 1
-            ), f"Found {curr_sis_id} {matches} times in gradebook"
-            gradebook_row_idx = matching_row_idxs[0]
-            gradebook_row = new_gradebook.iloc[gradebook_row_idx]
-            assert isinstance(gradebook_row, pd.Series)
-            
-            # Determine new grade.
-            existing_grade = to_real_number(gradebook_row[self.assignment_column_label])
-            if pd.isna(cast(float | int, existing_grade)):
-                new_grade = param_grade
-            else:
-                match self.if_existing:
-                    case self.ReplaceBehavior.REPLACE:
-                        new_grade = param_grade
-                        message = (f"Replacing grade value of {existing_grade}"
-                                   f" with new grade {new_grade} for student"
-                                   f" with ID {curr_sis_id}.")
-                    case self.ReplaceBehavior.PRESERVE:
-                        new_grade = existing_grade
-                        message = (f"Preserving grade value of {existing_grade}" 
-                                   f" for student with ID {curr_sis_id}.")
-                    case self.ReplaceBehavior.INCREMENT:
-                        new_grade = existing_grade + param_grade
-                            # TODO why did we increment by 1 and not by 2? (idek what this means and i wrote this comment myself)
-                        message = (f"Incrementing grade value of" 
-                                   f" {existing_grade} for new total grade" 
-                                   f" {new_grade} for student with ID" 
-                                   f" {curr_sis_id}.")
-                    case self.ReplaceBehavior.ERROR:
-                        raise ValueError(f"Existing grade value of"
-                                         f" {existing_grade} for student"
-                                         f" with ID {curr_sis_id}.")
-                if self.warn_existing:
-                    print(message)
-            
-            # Set new grade.
-            if '.' in str(new_grade):
-                # round decimals in case of float imprecision
-                new_grade = round(new_grade, 2)
-            assert is_pd_scalar(new_grade)
-            new_gradebook.loc[gradebook_row_idx, self.assignment_column_label] \
-                = new_grade
-                # TODO why were we accessing loc with 'i' (see original code)?
+        # determine which rows are conflicting
+        gb_loc_has_existing: pd.Series = new_gradebook[self.assignment_column_label].notna()
+        gb_loc_has_incoming: pd.Series = contains_row_for(incoming_grades_aligned, new_gradebook)
 
+        # set conflicting
+        gb_loc_conflicting = gb_loc_has_existing & gb_loc_has_incoming
+        conflict_vals, warning_msg = self.merge_conflict_values(
+            existing = new_gradebook.loc[gb_loc_conflicting, self.assignment_column_label],
+            incoming = incoming_grades_aligned[gb_loc_conflicting],
+            index_to_alias_id = id_by_gb_row,
+        )
+        new_gradebook.loc[gb_loc_conflicting, self.assignment_column_label] = conflict_vals
+        if warning_msg:
+            print(warning_msg)
+
+        # set non-conflicting
+        gb_loc_non_conflicting = (~gb_loc_has_existing) & gb_loc_has_incoming
+        new_gradebook.loc[gb_loc_non_conflicting, self.assignment_column_label] = (
+            incoming_grades_aligned[gb_loc_non_conflicting]
+        )
+
+        # Return, asserts
         assert (
             self.gradebook[[*new_gradebook.columns]]
                 .drop(self.assignment_column_label, axis='columns', inplace=False)
@@ -178,7 +260,6 @@ class CanvasGradebookOutputFormat(OutputFormat):
                     .drop(self.assignment_column_label, axis='columns', inplace=False)
             )
         )
-
         return new_gradebook
     
     @override

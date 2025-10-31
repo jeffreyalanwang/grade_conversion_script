@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
+from typing import final
 
 import pandas as pd
 from pandera.typing import DataFrame
-from grade_conversion_script.util.types import PtsBy_StudentSisId
+from grade_conversion_script.util.types import StudentPtsById
 from grade_conversion_script.util import AliasRecord
 
 class InputHandler(ABC):
@@ -13,11 +14,11 @@ class InputHandler(ABC):
     Subclasses must generate a `NameSisIdConverter`.
     '''
     @abstractmethod
-    def __init__(self, name_sis_id_store: NameSisIdConverter):
-        self.name_sis_id_store = name_sis_id_store
+    def __init__(self, student_aliases: AliasRecord):
+        self.student_aliases: AliasRecord = student_aliases
 
     @abstractmethod
-    def get_scores(self, csv: pd.DataFrame | dict[str, pd.DataFrame]) -> DataFrame[PtsBy_StudentSisId]:
+    def get_scores(self, csv: pd.DataFrame | dict[str, pd.DataFrame]) -> DataFrame[StudentPtsById]:
         '''
         Args:
             csv:

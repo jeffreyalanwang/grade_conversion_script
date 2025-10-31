@@ -4,7 +4,8 @@ import pandas as pd
 from abc import ABC, abstractmethod
 
 from pandera.typing import DataFrame
-from grade_conversion_script.util.types import PtsBy_StudentSisId
+from grade_conversion_script.util import AliasRecord
+from grade_conversion_script.util.types import StudentPtsById
 
 class OutputFormat(ABC):
     '''
@@ -15,7 +16,11 @@ class OutputFormat(ABC):
         Subclasses need a separate instance for each Canvas assignment.
     '''
     @abstractmethod
-    def format(self, grades: DataFrame[PtsBy_StudentSisId]) -> pd.DataFrame:
+    def __init__(self, student_aliases: AliasRecord):
+        self.student_aliases: AliasRecord = student_aliases
+
+    @abstractmethod
+    def format(self, grades: DataFrame[StudentPtsById]) -> pd.DataFrame:
         ...
     @classmethod # seems cannot be static to work properly with inheritance
     @abstractmethod

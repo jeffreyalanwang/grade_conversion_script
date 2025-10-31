@@ -1,13 +1,15 @@
 import pandas as pd
 from pathlib import Path
+
 from .base import OutputFormat
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import pandera.pandas as pa
 from pandera.typing import DataFrame
 
-from grade_conversion_script.util.types import PtsBy_StudentSisId, DataBy_StudentSisId
 from grade_conversion_script.util import AliasRecord
+from grade_conversion_script.util.types import StudentPtsById
+from grade_conversion_script.util.funcs import best_effort_is_name
 
 class AcrOutputFormat(OutputFormat):
     '''
@@ -27,13 +29,12 @@ class AcrOutputFormat(OutputFormat):
     crit2            4
     '''
         
-    def __init__(self, name_sis_id_converter: NameSisIdConverter):
-        super().__init__()
-        self.name_sis_id_converter = name_sis_id_converter
+    def __init__(self, student_aliases: AliasRecord):
+        super().__init__(student_aliases)
 
     @override
     @pa.check_types
-    def format(self, grades: DataFrame[PtsBy_StudentSisId]) -> pd.DataFrame:
+    def format(self, grades: DataFrame[StudentPtsById]) -> pd.DataFrame:
         '''
         Args:
             grades:
@@ -42,18 +43,29 @@ class AcrOutputFormat(OutputFormat):
         Returns:
             A dataframe which can be saved to file with self.write_file
         '''
-        # Reindex by student name
-        arg = cast(DataFrame[DataBy_StudentSisId], grades)
-        name_idx_grades = self.name_sis_id_converter.reindex_by_name(arg)
+        # Reindex by student name, or best-effort identifier
+        grades_by_name = cast(
+            pd.DataFrame,
+            grades.reindex(
+                index=grades.index.map(
+                    lambda id:
+                        self.student_aliases.best_effort_alias(
+                            best_effort_is_name,
+                            id=id
+                        ),
+                ),
+                copy=False
+            )
+        )
 
         # Go from (one row per name, one column per rubric criteria)
         # to (one column per name, one row per rubric criteria)
-        criteria_idx_grades = name_idx_grades.transpose()
+        grades_by_criteria = grades_by_name.transpose()
         # For index's header (see method docstring)
-        criteria_idx_grades.rename_axis("criteria", axis='index', inplace=True)
-        criteria_idx_grades.rename_axis(None, axis='columns', inplace=True)
+        grades_by_criteria.rename_axis("criteria", axis='index', inplace=True)
+        grades_by_criteria.rename_axis(None, axis='columns', inplace=True)
         
-        return criteria_idx_grades
+        return grades_by_criteria
     
     @override
     @classmethod
