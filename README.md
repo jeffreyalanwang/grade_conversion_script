@@ -29,7 +29,7 @@ to convert grades from one .csv format to another.
     
 2. Run the script.
     ```console
-    pipx run --spec git+https://github.com/jeffreyalanwang/grade_conversion_script.git#wheel=grade_conversion_script grade-convert [OPTIONS]
+    pipx run --spec git+https://github.com/jeffreyalanwang/grade_conversion_script.git grade-convert [OPTIONS]
     ```
     <i>
     The above downloads a fresh copy for each run.
@@ -38,7 +38,7 @@ to convert grades from one .csv format to another.
     
     ```console
     # Save to local computer
-    pipx install git+https://github.com/jeffreyalanwang/grade_conversion_script.git#wheel=grade_conversion_script [OPTIONS]
+    pipx install git+https://github.com/jeffreyalanwang/grade_conversion_script.git [OPTIONS]
     
     # Run
     grade-convert [OPTIONS]
