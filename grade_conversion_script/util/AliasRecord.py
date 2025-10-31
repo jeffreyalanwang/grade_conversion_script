@@ -1,9 +1,10 @@
+from itertools import chain
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
-from util.types import IndexFlag, DataBy_StudentSisId
+from grade_conversion_script.util.types import IndexFlag, AnyById, IterableOfStr
 
 class IdNotFoundException(KeyError, Exception):
     def __init__(self, id, *args, **kwargs):
@@ -23,6 +24,7 @@ class AliasRecord:
     '''
 
 # region magic methods
+
     def __init__(self):
 
         self._dict: dict[int, set[str]] = {}
@@ -52,54 +54,51 @@ class AliasRecord:
     def _new_id(self):
         val = self._next_id
         self._next_id += 1
+        self._dict[val] = set()
         return val
+
+    def valid_id(self, id: int) -> bool:
+        return id in self._dict.keys()
 
     @property
     def all_aliases(self):
         return set[str]().union(
-            iter(self._dict.values())
+            chain(*self._dict.values())
         )
 
     def add_at_id(self, id: int, alias: str | Iterable[str]) -> None:
+        assert self.valid_id(id), f"Invalid ID {id}"
+
         if isinstance(alias, str):
             aliases = (alias,)
         else:
             aliases = alias
 
         for item in aliases:
-            if item in self.aliases_from_id(id):
+            if item in self.all_aliases_of(id=id):
                 pass # set.update() will just have no effect
             elif item in self:
-                raise ValueError(f"Alias {item} already exists (within following set: {self.all_aliases_of(item)}.")
+                raise ValueError(f"Alias {item} already exists (within following set: {self.all_aliases_of(id=id)}.")
 
-        self._dict.setdefault(id, set()).update(aliases)
+        self._dict[id].update(aliases)
 
-    def add_associated(self, aliases: Collection[str], allow_new: bool = True) -> None:
-        ids = dict[int, set[str]]()
-        last_id = None # heuristic shortcut for loop
-        for alias in aliases:
-            if last_id and alias in self.aliases_from_id(last_id):
-                id = last_id
-            else:
-                try:
-                    id = self.id_of(alias)
-                except AliasNotFoundException:
-                    continue
-            last_id = id
-            ids.setdefault(id, set()).add(alias)
+    def add_single(self, alias: str | Iterable[str]) -> None:
+        if isinstance(alias, str):
+            id = self._new_id()
+            self.add_at_id(id, alias)
+        else:
+            aliases = alias
+            for alias in aliases:
+                self.add_single(alias)
 
-        assert len(ids) >= 0
-        if len(ids) == 0:
+    def add_together(self, aliases: Collection[str], allow_new: bool = True) -> None:
+        try:
+            id = self.id_of_any(aliases)
+        except AliasNotFoundException:
             if allow_new:
-                id = self._new_id()
+               id = self._new_id()
             else:
-                raise AliasNotFoundException(aliases)
-        elif len(ids) == 1:
-            id = iter(ids.keys()).__next__()
-        else: # len(ids) > 1
-            list_dict = {k : list(v) for k, v in ids.items()}
-            raise ValueError(f"Provided aliases match conflicting IDs."
-                             f" {list_dict}.")
+                raise
 
         self.add_at_id(id, aliases)
 
@@ -111,7 +110,7 @@ class AliasRecord:
     def add_bulk(self, records: DataFrame[str], allow_new: bool = True
      ) -> None:
         ...
-    @pa.check_types
+
     def add_bulk(self, records: Iterable[str | Collection[str]] | DataFrame[str], allow_new: bool = True) -> None:
         aliases_by_entity: Iterable[Iterable[str]]
         if isinstance(records, DataFrame):
@@ -128,46 +127,115 @@ class AliasRecord:
             )
 
         for aliases in aliases_by_entity:
-            self.add_associated(aliases)
+            self.add_together(aliases)
 
 # endregion add/remove
 # region lookup/translation
 
+    @overload
     def id_of(self, alias: str) -> int:
-        for id, aliases in self._dict.items():
-            if alias in aliases:
-                return id
-        raise AliasNotFoundException(alias)
+        ...
+    @overload
+    def id_of(self, alias: IterableOfStr) -> list[int]:
+        ...
+    def id_of(self, alias: str | Iterable[str]) -> int | list[int]:
+        if isinstance(alias, str):
+            for id, aliases in self._dict.items():
+                if alias in aliases:
+                    return id
+            raise AliasNotFoundException(alias)
+        else: # Iterable
+            aliases = alias
+            return  [
+                self.id_of(alias)
+                for alias in aliases
+            ]
 
-    def aliases_from_id(self, id: int) -> set[str]:
+    def id_of_any(
+            self,
+            aliases: Iterable[str]
+    ) -> int:
+
+        ids = dict[int, set[str]]()
+        last_id: int | None = None # heuristic shortcut for loop
+        for alias in aliases:
+            if last_id and alias in self.all_aliases_of(id=last_id):
+                id = last_id
+                continue
+            try:
+                id = self.id_of(alias)
+            except AliasNotFoundException:
+                continue
+            else: # we found a matching id
+                last_id = id
+                ids.setdefault(id, set()).add(alias)
+
+        assert len(ids) >= 0
+        if len(ids) == 0:
+            raise AliasNotFoundException(aliases)
+        elif len(ids) > 1:
+            list_dict = {k : list(v) for k, v in ids.items()}
+            raise ValueError(f"Provided aliases match conflicting IDs."
+                             f" {list_dict}.")
+
+        id = iter(ids.keys()).__next__()
+        return id
+
+    @overload
+    def all_aliases_of(self, *, id: int
+      ) -> set[str]:
+        ...
+    @overload
+    def all_aliases_of(self, *, alias: str
+      ) -> set[str]:
+        ...
+    def all_aliases_of(self, *, id: int | None = None, alias: str | None = None
+      ) -> set[str]:
+        match id, alias:
+            case None, None:
+                raise ValueError("Must provide either id or known_alias.")
+            case _, None:
+                # find by id
+                try:
+                    return self._dict[id]
+                except KeyError as e:
+                    raise IdNotFoundException(id) from e
+            case None, _:
+                # find by alias
+                id = self.id_of(alias) # may raise
+                return self.all_aliases_of(id=id)
+            case _, _:
+                raise ValueError("Must provide only one of the following: id, known_alias.")
+
+    def best_effort_alias(self, rule: Callable[[str], bool], *, id: int) -> str:
+        all_options = self.all_aliases_of(id=id)
+
+        possible_names = filter(rule, all_options)
+        backup_options = iter(all_options)
         try:
-            return self._dict[id]
-        except KeyError:
-            raise IdNotFoundException(id)
-
-    def all_aliases_of(self, alias: str) -> set[str]:
-        id = self.id_of(alias)
-        return self.aliases_from_id(id)
+            return next(possible_names)
+        except StopIteration:
+            return next(backup_options)
 
     @overload
-    def find_acceptable_alias(self, acceptable_aliases: list[str], *, id: int
-      ) -> str | set[str] | None:
+    def find_mutual_alias(self, acceptable_aliases: list[str], *, id: int
+                          ) -> str | set[str] | None:
         ...
     @overload
-    def find_acceptable_alias(self, acceptable_aliases: list[str], *, known_alias: str
-      ) -> str | set[str] | None:
+    def find_mutual_alias(self, acceptable_aliases: list[str], *, known_alias: str
+                          ) -> str | set[str] | None:
         ...
-    def find_acceptable_alias(self, acceptable_aliases: list[str], *, id: (int | None) = None, known_alias: (str | None) = None):
+    def find_mutual_alias(self, acceptable_aliases: list[str], *, id: (int | None) = None, known_alias: (str | None) = None):
 
         match id, known_alias:
             case None, None:
                 raise ValueError("Must provide either id or known_alias.")
             case _, None:
                 # find by id
-                all_aliases = self.aliases_from_id(id)
+                all_aliases = self.all_aliases_of(id=id)
             case None, _:
                 # find by known_alias
-                all_aliases = self.all_aliases_of(known_alias)
+                all_aliases = self.all_aliases_of(alias=known_alias)
             case _, _:
                 raise ValueError("Must provide only one of the following: id, known_alias.")
 
@@ -183,14 +251,16 @@ class AliasRecord:
 # endregion lookup/translation
 # region DataFrame manipulation
 
+    @pa.check_types
     def id_of_df[KT: Hashable | IndexFlag | pd.Series](
             self,
             df: pd.DataFrame,
             alias_col: KT | Sequence[KT],
-            expect_new: bool = False,
-            collect_new: bool = True,
+            expect_new_entities: bool = False,
+            collect_new_aliases: bool = True,
     ) -> Series[int]:
 
+        # alias_cols: alias_col guaranteed as a Sequence
         alias_cols: Sequence[KT]
         if (
             # can't check specifically for a generic like Sequence[KT]
@@ -201,27 +271,31 @@ class AliasRecord:
         ):
             alias_cols = ( cast(KT, alias_col), )
         else:
-            alias_cols = cast(Sequence[KT], alias_col)
+            alias_cols = alias_col
+        alias_cols = cast(Sequence[KT], alias_cols)
 
-        # Parameter asserts
-
-        col_uniques = Counter(alias_cols)
+        # Parameter asserts (all columns)
+        col_uniques = Counter((
+            col
+            if not isinstance(col, pd.Series) else col.name
+            for col in alias_cols
+        ))
         assert not any(
             count > 1
-            for col_val, count in col_uniques.items()
+            for col, count in col_uniques.items()
         ), f"Duplicate column specified in alias_col. {str(col_uniques)}"
 
+        # Parameter asserts (by column)
         for col in alias_cols:
             match col:
-                case IndexFlag.Index:
-                    pass
                 case pd.Series():
                     assert col.index.equals(df.index) # pyright: ignore[reportUnknownMemberType] I can't modify pandas
-                case Hashable():
-                    assert col in df.columns
+                case IndexFlag.Index:
+                    pass
+                case _:
+                    assert col in df.columns, f"Column {col} not found in DataFrame:\n{df}."
 
-        id_series = Series[int](name="id", dtype=int, index=df.index)
-
+        # priority_aliases_df: alias_cols formatted into a DataFrame
         priority_aliases_df = pd.concat(
             {
                 i: (
@@ -235,38 +309,45 @@ class AliasRecord:
             axis='columns'
         )
 
+        # Populate id_series
+
+        id_series = pd.Series(name="id", dtype='Int16', index=df.index)
+
         for row_idx in df.index: # pyright: ignore[reportAny] we don't care what the index type is
-            priority_aliases = priority_aliases_df.loc[row_idx, :].squeeze(axis="columns")
+            priority_aliases = priority_aliases_df.loc[row_idx, :]
             assert isinstance(priority_aliases, pd.Series)
+            priority_aliases = cast(pd.Series, priority_aliases)
             priority_aliases = priority_aliases.astype(str)
 
             id: int | None = None
             for alias in priority_aliases:
+                assert isinstance(alias, str)
                 if alias in self:
                     id = self.id_of(alias)
                     break
             if id is None:
-                if expect_new:
+                if expect_new_entities:
                     id = self._new_id()
                 else:
                     raise AliasNotFoundException(priority_aliases.to_list())
 
-            if collect_new:
+            if collect_new_aliases:
                 self.add_at_id(id, priority_aliases)
 
             id_series.at[row_idx] = id
 
-        return Series[int](id_series)
+        assert 'int' in str(id_series.dtype).lower(), f"Bad output dtype: {id_series.dtype}"
+        return Series[int](id_series.astype(int))
 
     @pa.check_types
     def reindex_by_id[KT: Hashable | IndexFlag | pd.Series](
             self,
             df: pd.DataFrame,
             alias_col: KT | Sequence[KT] = IndexFlag.Index,
-            expect_new: bool = False,
-            collect_new: bool = True,
+            expect_new_entities: bool = False,
+            collect_new_aliases: bool = True,
             inplace: bool = False
-    ) -> DataFrame[DataBy_StudentSisId]:
+    ) -> DataFrame[AnyById]:
         '''
         Reindex a collection of entities (one per row)
         by their internal ID stored in this object,
@@ -289,12 +370,12 @@ class AliasRecord:
                   indicating to use the index of `df`.
                 * A reference to a `Series` with the same
                   index as `df`.
-            expect_new:
+            expect_new_entities:
                 Whether to allow unrecognized entities
                 (i.e. new IDs) to be created and recorded.
                 If False, if no recognized aliases are
                 be found for a row, raises AliasNotFoundException.
-            collect_new:
+            collect_new_aliases:
                 Whether to collect unrecognized aliases from
                 any members of `alias_col`.
                 They will be matched to any recognized alias
@@ -324,8 +405,8 @@ class AliasRecord:
         new_index = self.id_of_df(
             df,
             alias_col,
-            expect_new,
-            collect_new
+            expect_new_entities,
+            collect_new_aliases
         )
 
         df.set_index(
@@ -335,6 +416,6 @@ class AliasRecord:
         )
 
         assert starting_df is df # double-check in case of inplace=True
-        return DataFrame[DataBy_StudentSisId](df)
+        return DataFrame[AnyById](df)
 
 # endregion DataFrame manipulation

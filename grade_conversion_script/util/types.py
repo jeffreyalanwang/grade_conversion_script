@@ -5,6 +5,17 @@ from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import pandera.pandas as pa
 from pandera.errors import SchemaError
 
+
+IndexFlag = Enum('Index', 'Index')
+Index = IndexFlag.Index
+
+type IterableOfStr = list[str] | tuple[str] | set[str] | Generator[str]
+
+type Matcher[T1, T2] = Callable[
+    [Collection[T1], Collection[T2]],
+    dict[T1, T2]
+]
+
 class SisId(str):
     ''' A Canvas SIS Login ID (i.e. UNC Charlotte username) '''
     @classmethod
@@ -23,11 +34,7 @@ class SisId(str):
         
         return cls(sis_login_id)
 
-IndexFlag = Enum('Index', 'Index')
-Index = IndexFlag.Index
-
-# TODO rename + refactor to eliminate SisId
-class DataBy_StudentSisId(pa.DataFrameModel):
+class AnyById(pa.DataFrameModel):
     '''
     Models any DataFrame whose index is all instances of `SisId`.
     
@@ -37,7 +44,7 @@ class DataBy_StudentSisId(pa.DataFrameModel):
     ...         {'col1': [1, 2, 3]},
     ...         index=["sisid1", "sisidtwo", "sisid3"]
     ...     ).rename_axis("sis_id")
-    >>> validated_df1 = DataBy_StudentSisId.validate(df1, inplace=False)
+    >>> validated_df1 = AnyById.validate(df1, inplace=False)
     >>> bool(
     ...     (df1 == validated_df1).all(axis=None)
     ... )
@@ -47,18 +54,18 @@ class DataBy_StudentSisId(pa.DataFrameModel):
     ...         {'col1': [1, 2, 3]},
     ...         index=["sisid1", "2", "sisid3"]
     ...     ).rename_axis("sis_id")
-    >>> validated_df2 = DataBy_StudentSisId.validate(df2, inplace=False)
+    >>> validated_df2 = AnyById.validate(df2, inplace=False)
     Traceback (most recent call last):
         ...
     pandera.errors.SchemaError: ...
     '''
-    sis_id: pa.typing.Index[str] = pa.Field(check_name=True)
+    id: pa.typing.Index[int] = pa.Field(check_name=True)
 
-    @pa.check('sis_id', element_wise=True, ignore_na=False)
-    def validate_sis_id(cls, x) -> bool:
-        return SisId.validate(x)
+    @pa.check('id', element_wise=True, ignore_na=False)
+    def validate_alias_id(cls, x) -> bool:
+        return x >= 400
 
-class BoolsBy_StudentSisId(DataBy_StudentSisId):
+class BoolsById(AnyById):
     '''
     Models any DataFrame indexed by `SisId`s and with
     columns of booleans.
@@ -69,7 +76,7 @@ class BoolsBy_StudentSisId(DataBy_StudentSisId):
     ...         {'col1': [True, False, True]},
     ...         index=["sisid1", "sisidtwo", "sisid3"]
     ...     ).rename_axis("sis_id")
-    >>> validated_df1 = BoolsBy_StudentSisId.validate(df1, inplace=False)
+    >>> validated_df1 = BoolsById.validate(df1, inplace=False)
     >>> bool(
     ...     (df1 == validated_df1).all(axis=None)
     ... )
@@ -79,7 +86,7 @@ class BoolsBy_StudentSisId(DataBy_StudentSisId):
     ...         {'col1': [True, False, 3]},
     ...         index=["sisid1", "2", "sisid3"]
     ...     ).rename_axis("sis_id")
-    >>> validated_df2 = BoolsBy_StudentSisId.validate(df2, inplace=False)
+    >>> validated_df2 = BoolsById.validate(df2, inplace=False)
     Traceback (most recent call last):
         ...
     pandera.errors.SchemaError: ...
@@ -96,7 +103,7 @@ class BoolsBy_StudentSisId(DataBy_StudentSisId):
         
         return True
 
-class PtsBy_StudentSisId(DataBy_StudentSisId):
+class StudentPtsById(AnyById):
     '''
     Models any DataFrame indexed by `SisId`s and with
     columns of numerical points.
@@ -108,7 +115,7 @@ class PtsBy_StudentSisId(DataBy_StudentSisId):
     ...           'col2': [4, 5, 6.0], },
     ...         index=["sisid1", "sisidtwo", "sisid3"]
     ...     ).rename_axis("sis_id")
-    >>> validated_df1 = PtsBy_StudentSisId.validate(df1, inplace=False)
+    >>> validated_df1 = StudentPtsById.validate(df1, inplace=False)
     >>> bool(
     ...     (df1 == validated_df1).all(axis=None)
     ... )
@@ -118,7 +125,7 @@ class PtsBy_StudentSisId(DataBy_StudentSisId):
     ...         {'col1': [True, 2, 3.0]},
     ...         index=["sisid1", "2", "sisid3"]
     ...     ).rename_axis("sis_id")
-    >>> validated_df2 = PtsBy_StudentSisId.validate(df2, inplace=False)
+    >>> validated_df2 = StudentPtsById.validate(df2, inplace=False)
     Traceback (most recent call last):
         ...
     pandera.errors.SchemaError: ...
