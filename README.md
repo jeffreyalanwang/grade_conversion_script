@@ -60,7 +60,7 @@ grade-convert output e_rubric --help
 #### Example 2: conversion
 
 ```console
-grade-convert output e_rubric --help input pollev_attendance 2 $ATT_1 $ATT_2 output e_rubric $ORIG_RUBRIC --no-warn-existing "output.csv"
+grade-convert input pollev_attendance 2 $ATT_1 $ATT_2 output e_rubric $ORIG_RUBRIC --no-warn-existing "output.csv"
 ```
 **Read PollEv attendance** export files at paths `$ATT_1` and `$ATT_2`, with each day of attendance worth 2 points.
 
