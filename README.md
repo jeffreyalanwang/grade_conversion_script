@@ -43,6 +43,10 @@ to convert grades from one .csv format to another.
     # Run
     grade-convert [OPTIONS]
     ```
+    ```console
+    # To uninstall
+    pipx uninstall grade_conversion_script
+   ```
 
 ### Examples
 

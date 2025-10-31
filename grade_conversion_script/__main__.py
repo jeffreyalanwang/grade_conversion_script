@@ -1,7 +1,7 @@
 # We need to make sure non-packaged dependencies
 # (i.e. packages with native extension code, e.g. pandas)
 # are available
-from bootstrap_utils import ensure_pkg_dependencies
+from grade_conversion_script.bootstrap_utils import ensure_pkg_dependencies
 ensure_pkg_dependencies()
 
 import pandas as pd
@@ -9,10 +9,10 @@ from pathlib import Path
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 from pandera.typing import DataFrame
-from util.types import PtsBy_StudentSisId
+from grade_conversion_script.util.types import PtsBy_StudentSisId
 
-from input import *
-from output import *
+from grade_conversion_script.input import *
+from grade_conversion_script.output import *
 
 def process_input_file(handler: InputHandler, files: Iterable[Path]):
     ''' Read and process grades to internal format. '''
@@ -29,7 +29,7 @@ def create_output_file(scores: DataFrame[PtsBy_StudentSisId], handler: OutputFor
     handler.write_file(out_df, filepath)
 
 def main():
-    from cmd_opts import run as get_cmd_setup
+    from grade_conversion_script.cmd_opts import run as get_cmd_setup
 
     handlers, files_str = get_cmd_setup() # argparse reads cmd args
 
