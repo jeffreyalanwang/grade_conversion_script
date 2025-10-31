@@ -24,6 +24,9 @@ grade-convert = "grade_conversion_script.__main__:main"
 test = "test_all.py"
 build = "build.py"
 
+[tool.pytest.ini_options]
+python_files = "test/*.py"
+
 [tool.setuptools.packages.find]
 include = [
     "grade_conversion_script",

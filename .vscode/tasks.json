@@ -4,7 +4,7 @@
 		{
 			"label": "Package: test",
 			"command": "python",
-			"args": ["-m pytest --doctest-modules ${workspaceFolder}/grade_conversion_script"],
+			"args": ["-m pytest --doctest-modules ${workspaceFolder}"],
 			"detail": "Run pytest",
 			"group": {
 				"kind": "test",
