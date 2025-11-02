@@ -26,6 +26,7 @@ build = "build.py"
 
 [tool.pytest.ini_options]
 python_files = "test/*.py"
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "IGNORE_EXCEPTION_DETAIL"]
 
 [tool.setuptools.packages.find]
 include = [

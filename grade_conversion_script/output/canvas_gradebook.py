@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
+from pandas.api.types import is_integer_dtype
 import pandera.pandas as pa
 from pandera.typing import DataFrame
 
@@ -11,26 +12,55 @@ from .base import OutputFormat
 
 from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.funcs import associate_unrecognized_entities, best_effort_is_name, contains_row_for, reindex_to
-from grade_conversion_script.util.types import Matcher, StudentPtsById
+from grade_conversion_script.util.custom_types import Matcher, StudentPtsById
 from grade_conversion_script.util.tui import interactive_alias_match
 
 class CanvasGradebookOutputFormat(OutputFormat):
     '''
     Output a Canvas Gradebook CSV file for import.
-    
-    >>> gradebook_csv = pd.DataFrame({'SIS Login ID': ["name1",],
-    ...                               'Assignment Name': [1,]})
-    >>> cgradebook_output = CanvasGradebookOutputFormat(gradebook_csv, 'Assignment Name', sum=True, if_existing=CanvasGradebookOutputFormat.ReplaceBehavior.INCREMENT, warn_existing=True)
+
+    >>> student_ar = AliasRecord()
+    >>> gradebook_csv = pd.DataFrame({
+    ...     'Student'     : ["Name One (copy 2)",],
+    ...     'ID'          : [None               ,],
+    ...     'SIS Login ID': ["name1"            ,],
+    ...     'Section'     : [None               ,],
+    ...     'Assignment 1': [1                  ,],
+    ... })
+    >>> def raise_if_match(*args, **kwargs) -> str:
+    ...     from itertools import chain
+    ...     if any(obj for obj in chain(args, kwargs.values())):
+    ...         raise Exception("Matching not expected")
+    ...     return dict()
+    >>> cgradebook_output = CanvasGradebookOutputFormat(
+    ...     gradebook_csv,
+    ...     'Assignment 1',
+    ...     student_ar,
+    ...     unrecognized_name_match=raise_if_match,
+    ...     sum=True,
+    ...     if_existing=CanvasGradebookOutputFormat.ReplaceBehavior.INCREMENT,
+    ...     warn_existing=True
+    ... )
+
+    >>> student_ar.add_together(['name1', 'Name One (copy 1)'])
+    >>> student_ar.id_of('name1')
+    400
     >>> grades = pd.DataFrame({
-    ...                         'sis_id':    ['name1',],
-    ...                         'Pts pt. 1': [1,      ],
-    ...                         'Pts pt. 2': [2,      ],
-    ...                     }).set_index('sis_id', drop=True)
-    >>> new_csv = cgradebook_output.format(grades)
-    Incrementing grade value of 1 for new total grade 4 for student with ID name1.
-    >>> print(new_csv[['SIS Login ID', 'Assignment Name']].to_string(index=False))
-    SIS Login ID  Assignment Name
-           name1                4
+    ...     'id'   : [400,],
+    ...     'crit1': [3,  ],
+    ...     'crit2': [4,  ],
+    ... }).set_index('id', drop=True)
+    >>> grades
+         crit1  crit2
+     id
+    400      3      4
+
+    >>> new_csv = cgradebook_output.format(grades) # doctest: +ELLIPSIS
+    Incrementing existing grade values:
+        1	(adding: 7,	student: Name One (copy ...))
+    >>> print(new_csv[['SIS Login ID', 'Assignment 1']].to_string(index=False))
+    SIS Login ID  Assignment 1
+           name1             8
     '''
 
     class ReplaceBehavior(enum.Enum):
@@ -105,13 +135,13 @@ class CanvasGradebookOutputFormat(OutputFormat):
         subline_start = "\n    "
         tab = "\t"
         def conflicts_detail():
-            for idx, row in pd.DataFrame({"existing": existing, "incoming": incoming}).itertuples():
-                alias_id = index_to_alias_id[idx]
-                assert isinstance(alias_id, int)
-                student_name = self.student_aliases.best_effort_alias(best_effort_is_name, id=alias_id)
+            for row in pd.DataFrame({"existing": existing, "incoming": incoming}).itertuples():
+                alias_id = index_to_alias_id[row.Index]
+                assert is_integer_dtype(alias_id)
+                student_name = self.student_aliases.best_effort_alias(best_effort_is_name, id=int(alias_id))
                 yield (row.existing, row.incoming, student_name)
 
-        assert existing.index.equals(incoming.index)
+        pd.testing.assert_index_equal(existing.index, incoming.index)
 
         if existing.empty:
             return (existing, None)
@@ -145,7 +175,7 @@ class CanvasGradebookOutputFormat(OutputFormat):
                     )
                 ))
             case self.ReplaceBehavior.INCREMENT:
-                values = existing.to_numeric(errors='raise') + incoming.to_numeric(errors='raise')
+                values = pd.to_numeric(existing, errors='raise') + pd.to_numeric(incoming, errors='raise')
                 message = subline_start.join((
                     f"Incrementing existing grade values:",
                     *(
@@ -252,13 +282,12 @@ class CanvasGradebookOutputFormat(OutputFormat):
         )
 
         # Return, asserts
-        assert (
-            self.gradebook[[*new_gradebook.columns]]
-                .drop(self.assignment_column_label, axis='columns', inplace=False)
-            .equals(
-                new_gradebook
-                    .drop(self.assignment_column_label, axis='columns', inplace=False)
-            )
+        pd.testing.assert_frame_equal(
+            self.gradebook[[*new_gradebook.columns]].fillna('')
+                .drop(self.assignment_column_label, axis='columns', inplace=False),
+            new_gradebook.fillna('')
+                .drop(self.assignment_column_label, axis='columns', inplace=False),
+            check_dtype = False,
         )
         return new_gradebook
     

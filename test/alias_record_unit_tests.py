@@ -7,7 +7,7 @@ from grade_conversion_script.util.AliasRecord import (
     IdNotFoundException,
     AliasNotFoundException
 )
-from grade_conversion_script.util.types import IndexFlag
+from grade_conversion_script.util.custom_types import IndexFlag
 
 class TestAliasRecordExceptions:
     """Test custom exception classes."""
@@ -39,19 +39,19 @@ class TestAliasRecordBasics:
     
     def test_str(self):
         ar = AliasRecord()
-        ar.add_single("test")
+        ar.add_new_entity("test")
         result = str(ar)
         assert "400" in result
         assert "test" in result
     
     def test_contains_id(self):
         ar = AliasRecord()
-        ar.add_single("test")
+        ar.add_new_entity("test")
         assert 400 in ar
     
     def test_contains_alias(self):
         ar = AliasRecord()
-        ar.add_single("test")
+        ar.add_new_entity("test")
         assert "test" in ar
     
     def test_not_contains(self):
@@ -117,7 +117,7 @@ class TestAliasRecordAddRemove:
     
     def test_add_associated_existing_aliases(self):
         ar = AliasRecord()
-        ar.add_single("alias1")
+        ar.add_new_entity("alias1")
         ar.add_together(["alias1", "alias2"], allow_new=True)
         assert ar.id_of("alias1") == 400
         assert ar.id_of("alias2") == 400
@@ -129,8 +129,8 @@ class TestAliasRecordAddRemove:
     
     def test_add_associated_conflicting_ids(self):
         ar = AliasRecord()
-        ar.add_single("alias1")
-        ar.add_single("alias2")
+        ar.add_new_entity("alias1")
+        ar.add_new_entity("alias2")
         with pytest.raises(ValueError) as exc_info:
             ar.add_together(["alias1", "alias2"], allow_new=True)
         assert "conflicting IDs" in str(exc_info.value)
@@ -158,7 +158,7 @@ class TestAliasRecordLookup:
     
     def test_id_of_found(self):
         ar = AliasRecord()
-        ar.add_single("test")
+        ar.add_new_entity("test")
         assert ar.id_of("test") == 400
     
     def test_id_of_not_found(self):
@@ -228,8 +228,8 @@ class TestAliasRecordDataFrame:
     
     def test_id_of_df_single_column(self):
         ar = AliasRecord()
-        ar.add_single("student1")
-        ar.add_single("student2")
+        ar.add_new_entity("student1")
+        ar.add_new_entity("student2")
         
         df = pd.DataFrame({
             "name": ["student1", "student2"],
@@ -242,7 +242,7 @@ class TestAliasRecordDataFrame:
     
     def test_id_of_df_multiple_columns_priority(self):
         ar = AliasRecord()
-        ar.add_single("student1")
+        ar.add_new_entity("student1")
         
         df = pd.DataFrame({
             "name": ["student1"],
@@ -257,7 +257,7 @@ class TestAliasRecordDataFrame:
     
     def test_id_of_df_with_index(self):
         ar = AliasRecord()
-        ar.add_single("student1")
+        ar.add_new_entity("student1")
         
         df = pd.DataFrame({
             "grade": [90]
@@ -292,7 +292,7 @@ class TestAliasRecordDataFrame:
     
     def test_id_of_df_with_series(self):
         ar = AliasRecord()
-        ar.add_single("student1")
+        ar.add_new_entity("student1")
         
         df = pd.DataFrame({
             "grade": [90]
@@ -305,8 +305,8 @@ class TestAliasRecordDataFrame:
     
     def test_reindex_by_id_basic(self):
         ar = AliasRecord()
-        ar.add_single( "student1")
-        ar.add_single( "student2")
+        ar.add_new_entity("student1")
+        ar.add_new_entity("student2")
         
         df = pd.DataFrame({
             "name": ["student1", "student2"],
@@ -320,7 +320,7 @@ class TestAliasRecordDataFrame:
     @no_type_check
     def test_reindex_by_id_with_index_flag(self):
         ar = AliasRecord()
-        ar.add_single( "student1")
+        ar.add_new_entity("student1")
         
         df = pd.DataFrame({
             "grade": [90]
@@ -343,7 +343,7 @@ class TestAliasRecordDataFrame:
     
     def test_reindex_by_id_multiple_columns(self):
         ar = AliasRecord()
-        ar.add_single("student1")
+        ar.add_new_entity("student1")
         
         df = pd.DataFrame({
             "name": ["student1"],
@@ -367,7 +367,7 @@ class TestAliasRecordEdgeCases:
     
     def test_duplicate_column_in_id_of_df(self):
         ar = AliasRecord()
-        ar.add_single( "student1")
+        ar.add_new_entity("student1")
         
         df = pd.DataFrame({
             "name": ["student1"],
@@ -380,7 +380,7 @@ class TestAliasRecordEdgeCases:
     
     def test_multiple_same_aliases_different_rows(self):
         ar = AliasRecord()
-        ar.add_single("student1")
+        ar.add_new_entity("student1")
         
         df = pd.DataFrame({
             "name": ["student1", "student1"],

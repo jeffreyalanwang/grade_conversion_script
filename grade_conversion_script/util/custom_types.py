@@ -11,10 +11,13 @@ Index = IndexFlag.Index
 
 type IterableOfStr = list[str] | tuple[str] | set[str] | Generator[str]
 
-type Matcher[T1, T2] = Callable[
-    [Collection[T1], Collection[T2]],
-    dict[T1, T2]
-]
+class Matcher[T1, T2](Protocol):
+    def __call__(self, user: Collection[T1], dest: Collection[T2]) -> dict[T1, T2]:
+        ...
+
+class RubricMatcher(Matcher[str, str], Protocol):
+    def __call__(self, given_labels, dest_labels) -> dict[str, str]:
+        ...
 
 class SisId(str):
     ''' A Canvas SIS Login ID (i.e. UNC Charlotte username) '''
@@ -36,14 +39,14 @@ class SisId(str):
 
 class AnyById(pa.DataFrameModel):
     '''
-    Models any DataFrame whose index is all instances of `SisId`.
+    Models any DataFrame whose index is IDs from an `AliasRecord`.
     
     >>> import pandas as pd
 
     >>> df1 = pd.DataFrame(
     ...         {'col1': [1, 2, 3]},
-    ...         index=["sisid1", "sisidtwo", "sisid3"]
-    ...     ).rename_axis("sis_id")
+    ...         index=[404, 405, 406]
+    ...     ).rename_axis("id")
     >>> validated_df1 = AnyById.validate(df1, inplace=False)
     >>> bool(
     ...     (df1 == validated_df1).all(axis=None)
@@ -52,9 +55,9 @@ class AnyById(pa.DataFrameModel):
 
     >>> df2 = pd.DataFrame(
     ...         {'col1': [1, 2, 3]},
-    ...         index=["sisid1", "2", "sisid3"]
-    ...     ).rename_axis("sis_id")
-    >>> validated_df2 = AnyById.validate(df2, inplace=False)
+    ...         index=[404, "405", 406]
+    ...     ).rename_axis("id")
+    >>> validated_df2 = StudentPtsById.validate(df2, inplace=False)
     Traceback (most recent call last):
         ...
     pandera.errors.SchemaError: ...
@@ -67,26 +70,25 @@ class AnyById(pa.DataFrameModel):
 
 class BoolsById(AnyById):
     '''
-    Models any DataFrame indexed by `SisId`s and with
-    columns of booleans.
+    Models any DataFrame indexed by IDs in an
+    `AliasRecord` and composed of columns of
+    booleans.
 
     >>> import pandas as pd
 
     >>> df1 = pd.DataFrame(
     ...         {'col1': [True, False, True]},
-    ...         index=["sisid1", "sisidtwo", "sisid3"]
-    ...     ).rename_axis("sis_id")
+    ...         index=[404, 405, 406]
+    ...     ).rename_axis("id")
     >>> validated_df1 = BoolsById.validate(df1, inplace=False)
-    >>> bool(
-    ...     (df1 == validated_df1).all(axis=None)
-    ... )
+    >>> df1.equals(validated_df1)
     True
 
     >>> df2 = pd.DataFrame(
     ...         {'col1': [True, False, 3]},
-    ...         index=["sisid1", "2", "sisid3"]
-    ...     ).rename_axis("sis_id")
-    >>> validated_df2 = BoolsById.validate(df2, inplace=False)
+    ...         index=[404, 405, 406]
+    ...     ).rename_axis("id")
+    >>> validated_df2 = StudentPtsById.validate(df2, inplace=False)
     Traceback (most recent call last):
         ...
     pandera.errors.SchemaError: ...
@@ -105,26 +107,25 @@ class BoolsById(AnyById):
 
 class StudentPtsById(AnyById):
     '''
-    Models any DataFrame indexed by `SisId`s and with
-    columns of numerical points.
+    Models any DataFrame indexed by IDs in an
+    `AliasRecord` and composed of columns of
+    numerical points.
     
     >>> import pandas as pd
     
     >>> df1 = pd.DataFrame(
     ...         { 'col1': [1, 2, 3],
     ...           'col2': [4, 5, 6.0], },
-    ...         index=["sisid1", "sisidtwo", "sisid3"]
-    ...     ).rename_axis("sis_id")
+    ...         index=[407, 408, 409]
+    ...     ).rename_axis("id")
     >>> validated_df1 = StudentPtsById.validate(df1, inplace=False)
-    >>> bool(
-    ...     (df1 == validated_df1).all(axis=None)
-    ... )
+    >>> df1.equals(validated_df1)
     True
 
     >>> df2 = pd.DataFrame(
-    ...         {'col1': [True, 2, 3.0]},
-    ...         index=["sisid1", "2", "sisid3"]
-    ...     ).rename_axis("sis_id")
+    ...         {'col1': ["1", 2, 3.0]},
+    ...         index=[404, 405, 406]
+    ...     ).rename_axis("id")
     >>> validated_df2 = StudentPtsById.validate(df2, inplace=False)
     Traceback (most recent call last):
         ...

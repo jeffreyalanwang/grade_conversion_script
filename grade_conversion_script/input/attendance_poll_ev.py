@@ -7,8 +7,21 @@ from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
-from grade_conversion_script.util.types import SisId, StudentPtsById, BoolsById
+from grade_conversion_script.util.custom_types import SisId, StudentPtsById, BoolsById
 from grade_conversion_script.util import AliasRecord
+
+class PollEvCheck(Protocol):
+    '''
+    Determine if a row from a PollEv CSV
+    represents a student that should get
+    an attendance point.
+    '''
+    @overload
+    def __call__(self, student_rows: pd.DataFrame, /) -> Series[bool]:
+        ...
+    @overload
+    def __call__(self, student_rows: pd.Series, /) -> bool:
+        ...
 
 class AttendancePollEv(InputHandler):
     '''
@@ -16,30 +29,26 @@ class AttendancePollEv(InputHandler):
     Input:  data with external schema (PollEverywhere export).
     Output: data with internally guaranteed schema.
 
-    >>> name_sis_id = NameSisIdConverter()
-    >>> attendance_input = AttendancePollEv(2, name_sis_id)
+    >>> student_ar = AliasRecord()
+    >>> attendance_input = AttendancePollEv(2, student_ar)
     >>> pollev_df = pd.DataFrame({'First name': ['Name','Name','Average grade','Average participation'],
     ...                           'Last name' : ['One', 'Two', None,           None],
     ...                           'Email'     : ['name1@charlotte.edu','name2@charlotte.edu', None, None],
     ...                           'Grade'     : [99   ,  0,    None,           None]})
     >>> attendance_input.get_scores(pollev_df)
-            attendance
-    sis_id            
-    name1            2
-    name2            0
-    >>> str(name_sis_id)
-    "{'Name One': 'name1', 'Name Two': 'name2'}"
+          attendance
+     id
+    400            2
+    401            0
+    >>> print(student_ar)
+    {400: ["(0, 'Name One')", 'name1', 'name1@charlotte.edu'], 401: ["(1, 'Name Two')", 'name2', 'name2@charlotte.edu']}
     '''
 
     def __init__(
         self,
         pts_per_day: num.Real,
         student_aliases: AliasRecord,
-        attendance_rule: Callable[
-                             [pd.DataFrame | pd.Series],
-                             Series[bool] | bool
-                         ] | None
-            = None
+        attendance_rule: PollEvCheck | None = None
     ):
         '''
         Set options which vary among input-handlers here.
@@ -48,13 +57,13 @@ class AttendancePollEv(InputHandler):
         '''
         super().__init__(student_aliases)
         self.pts_per_day = pts_per_day
+
         if attendance_rule is not None:
-            self.has_attended = attendance_rule # pyright: ignore[reportAttributeAccessIssue] no way to type-hint an overload
+            self.is_attended = attendance_rule # pyright: ignore[reportAttributeAccessIssue] no way to type-hint an overload
 
     @overload
     def is_attended(self, student_rows: pd.DataFrame, /) -> Series[bool]:
         ...
-
     @overload
     def is_attended(self, student_rows: pd.Series, /) -> bool:
         ...
@@ -106,7 +115,7 @@ class AttendancePollEv(InputHandler):
         # Determine attendance by student
         attendance = student_rows \
                         .apply(
-                            self.has_attended,
+                            self.is_attended,
                             axis='columns' # passes one row to function at a time
                         ).squeeze()
         assert isinstance(attendance, pd.Series)
@@ -124,7 +133,7 @@ class AttendancePollEv(InputHandler):
         sis_ids = emails.apply(
             lambda x: (
                 SisId.from_email(x)
-                if not pd.isna(x) else None
+                if not pd.isna(x) and x != '' else None
             )
         )
         self.student_aliases.reindex_by_id( # TODO remove, just to double check no assert is thrown

@@ -4,7 +4,9 @@ import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
-from grade_conversion_script.util.types import IndexFlag, AnyById, IterableOfStr
+from grade_conversion_script.util.custom_types import IndexFlag, AnyById, IterableOfStr
+
+python_id = id
 
 class IdNotFoundException(KeyError, Exception):
     def __init__(self, id, *args, **kwargs):
@@ -35,7 +37,7 @@ class AliasRecord:
     def __str__(self):
         # improve readability
         list_dict = {
-            k : list(v)
+            k : sorted(v)
             for k, v in self._dict.items()
         }
         return str(list_dict)
@@ -57,17 +59,33 @@ class AliasRecord:
         self._dict[val] = set()
         return val
 
-    def valid_id(self, id: int) -> bool:
+    def id_exists(self, id: int) -> bool:
+        '''
+        Note:
+            The set of aliases for this ID
+            might be empty, if alias removal
+            is implemented in `AliasRecord`.
+        '''
         return id in self._dict.keys()
 
     @property
     def all_aliases(self):
+        '''
+        Set of all aliases
+        (for checking whether an
+        alias is recognized).
+        '''
         return set[str]().union(
             chain(*self._dict.values())
         )
 
     def add_at_id(self, id: int, alias: str | Iterable[str]) -> None:
-        assert self.valid_id(id), f"Invalid ID {id}"
+        '''
+        Add one or multiple aliases
+        for one entity, using its iD.
+        '''
+        assert self.id_exists(id), f"Invalid ID: {id}"
+        assert alias is not None
 
         if isinstance(alias, str):
             aliases = (alias,)
@@ -82,18 +100,43 @@ class AliasRecord:
 
         self._dict[id].update(aliases)
 
-    def add_single(self, alias: str | Iterable[str]) -> None:
+    def add_new_entity(self, alias: str | Iterable[str]) -> None:
+        '''
+        Create a new entity with one alias.
+        If alias is an Iterable, create len(alias) new entities.
+
+        Raises:
+            `ValueError` if alias is already recognized.
+        '''
+        if alias in self.all_aliases:
+            raise ValueError(f"Alias {alias} already exists.")
+        assert alias is not None
+
         if isinstance(alias, str):
             id = self._new_id()
             self.add_at_id(id, alias)
         else:
             aliases = alias
             for alias in aliases:
-                self.add_single(alias)
+                self.add_new_entity(alias)
 
     def add_together(self, aliases: Collection[str], allow_new: bool = True) -> None:
+        '''
+        Add aliases that are known to match the same entity.
+
+        Finds a matching entity or adds
+        a new one if `allow_new` is True.
+
+        Args:
+            aliases:
+                Aliases to add together.
+            allow_new:
+                Whether at least one alias must match an existing entity.
+        Raises:
+            See `id_together()`.
+        '''
         try:
-            id = self.id_of_any(aliases)
+            id = self.id_together(aliases)
         except AliasNotFoundException:
             if allow_new:
                id = self._new_id()
@@ -110,8 +153,20 @@ class AliasRecord:
     def add_bulk(self, records: DataFrame[str], allow_new: bool = True
      ) -> None:
         ...
-
     def add_bulk(self, records: Iterable[str | Collection[str]] | DataFrame[str], allow_new: bool = True) -> None:
+        '''
+        Add aliases at once for a series of entities.
+
+        Args:
+            records:
+                Should iterate by entity
+                (for DataFrame, each row is an entity).
+
+                Multiple aliases may be
+                provided for each entity.
+            allow_new:
+                See `add_together()`.
+        '''
         aliases_by_entity: Iterable[Iterable[str]]
         if isinstance(records, DataFrame):
             aliases_by_entity = records.itertuples(index=False, name=None)
@@ -127,7 +182,7 @@ class AliasRecord:
             )
 
         for aliases in aliases_by_entity:
-            self.add_together(aliases)
+            self.add_together(aliases, allow_new=allow_new)
 
 # endregion add/remove
 # region lookup/translation
@@ -139,6 +194,11 @@ class AliasRecord:
     def id_of(self, alias: IterableOfStr) -> list[int]:
         ...
     def id_of(self, alias: str | Iterable[str]) -> int | list[int]:
+        '''
+        Match a single alias to its ID.
+        '''
+        assert alias is not None
+
         if isinstance(alias, str):
             for id, aliases in self._dict.items():
                 if alias in aliases:
@@ -151,35 +211,42 @@ class AliasRecord:
                 for alias in aliases
             ]
 
-    def id_of_any(
+    def id_together(
             self,
             aliases: Iterable[str]
     ) -> int:
+        '''
+        Given any number of possible aliases for an entity,
+        try to find an ID.
 
-        ids = dict[int, set[str]]()
-        last_id: int | None = None # heuristic shortcut for loop
+        Raises:
+            `AliasNotFoundException` (only if allow_new=False.)
+            `ValueError` if aliases match conflicting entities.
+        '''
+        ids = dict[int, str]()
+        last_id: int | None = None
         for alias in aliases:
             if last_id and alias in self.all_aliases_of(id=last_id):
-                id = last_id
+                continue
+            if alias is None:  # pyright: ignore[reportUnnecessaryComparison]
                 continue
             try:
                 id = self.id_of(alias)
             except AliasNotFoundException:
                 continue
             else: # we found a matching id
+                ids[id] = alias
                 last_id = id
-                ids.setdefault(id, set()).add(alias)
 
-        assert len(ids) >= 0
-        if len(ids) == 0:
+        if not last_id:
             raise AliasNotFoundException(aliases)
         elif len(ids) > 1:
             list_dict = {k : list(v) for k, v in ids.items()}
             raise ValueError(f"Provided aliases match conflicting IDs."
                              f" {list_dict}.")
 
-        id = iter(ids.keys()).__next__()
-        return id
+        assert last_id is not None
+        return last_id
 
     @overload
     def all_aliases_of(self, *, id: int
@@ -191,6 +258,10 @@ class AliasRecord:
         ...
     def all_aliases_of(self, *, id: int | None = None, alias: str | None = None
       ) -> set[str]:
+        '''
+        Return the full set of aliases
+        known for an entity.
+        '''
         match id, alias:
             case None, None:
                 raise ValueError("Must provide either id or known_alias.")
@@ -208,6 +279,22 @@ class AliasRecord:
                 raise ValueError("Must provide only one of the following: id, known_alias.")
 
     def best_effort_alias(self, rule: Callable[[str], bool], *, id: int) -> str:
+        '''
+        Select one alias for an entity,
+        preferably selecting one that satisfies a rule.
+
+        >>> ar = AliasRecord()
+        >>> ar.add_new_entity("student1")
+        >>> id = ar.id_of("student1")
+
+        >>> from grade_conversion_script.util.funcs import best_effort_is_name
+        >>> ar.best_effort_alias(best_effort_is_name, id=id)
+        'student1'
+
+        >>> ar.add_at_id(id, "Student One")
+        >>> ar.best_effort_alias(best_effort_is_name, id=id)
+        'Student One'
+        '''
         all_options = self.all_aliases_of(id=id)
 
         possible_names = filter(rule, all_options)
@@ -226,7 +313,12 @@ class AliasRecord:
                           ) -> str | set[str] | None:
         ...
     def find_mutual_alias(self, acceptable_aliases: list[str], *, id: (int | None) = None, known_alias: (str | None) = None):
-
+        '''
+        Find all aliases for an entity
+        that match a set of acceptable aliases
+        (e.g. a set of aliases for all
+        entities in a destination dataset).
+        '''
         match id, known_alias:
             case None, None:
                 raise ValueError("Must provide either id or known_alias.")
@@ -256,9 +348,29 @@ class AliasRecord:
             self,
             df: pd.DataFrame,
             alias_col: KT | Sequence[KT],
+            *,
             expect_new_entities: bool = False,
             collect_new_aliases: bool = True,
     ) -> Series[int]:
+        '''
+        Generate a column of IDs for a DataFrame.
+
+        Args: See `reindex_by_id()`.
+
+        >>> ar = AliasRecord()
+        >>> ar.add_together(["student@gmail.com", "Student Name"], allow_new=True)
+        >>> ar.id_of("Student Name")
+        400
+        >>> df1 = pd.DataFrame({
+        ...             "sis_id": ["name1",],
+        ...             "st_name":["Student Name",]
+        ...         })
+        >>> ar.id_of_df(df1, ["sis_id", "st_name"], expect_new_entities=False, collect_new_aliases=True)
+        0    400
+        Name: id, dtype: int64
+        >>> sorted(ar.all_aliases_of(id=400))
+        ['Student Name', 'name1', 'student@gmail.com']
+        '''
 
         # alias_cols: alias_col guaranteed as a Sequence
         alias_cols: Sequence[KT]
@@ -277,7 +389,7 @@ class AliasRecord:
         # Parameter asserts (all columns)
         col_uniques = Counter((
             col
-            if not isinstance(col, pd.Series) else col.name
+            if not isinstance(col, pd.Series) else python_id(col)
             for col in alias_cols
         ))
         assert not any(
@@ -289,7 +401,7 @@ class AliasRecord:
         for col in alias_cols:
             match col:
                 case pd.Series():
-                    assert col.index.equals(df.index) # pyright: ignore[reportUnknownMemberType] I can't modify pandas
+                    pd.testing.assert_index_equal(col.index, df.index) # pyright: ignore[reportUnknownMemberType] I can't modify pandas
                 case IndexFlag.Index:
                     pass
                 case _:
@@ -344,9 +456,9 @@ class AliasRecord:
             self,
             df: pd.DataFrame,
             alias_col: KT | Sequence[KT] = IndexFlag.Index,
-            expect_new_entities: bool = False,
-            collect_new_aliases: bool = True,
-            inplace: bool = False
+            *,
+            inplace: bool = False,
+            **kwargs
     ) -> DataFrame[AnyById]:
         '''
         Reindex a collection of entities (one per row)
@@ -374,7 +486,7 @@ class AliasRecord:
                 Whether to allow unrecognized entities
                 (i.e. new IDs) to be created and recorded.
                 If False, if no recognized aliases are
-                be found for a row, raises AliasNotFoundException.
+                found for a row, raises AliasNotFoundException.
             collect_new_aliases:
                 Whether to collect unrecognized aliases from
                 any members of `alias_col`.
@@ -385,18 +497,20 @@ class AliasRecord:
         Returns:
             A DataFrame indexed by internal IDs.
 
-        # TODO these doctests
-        >>> name_aliases = AliasRecord()
-        >>> converter.add(sis_id="name1",name="Student Name")
-
+        >>> ar = AliasRecord()
+        >>> ar.add_together(["student@gmail.com", "Student Name"], allow_new=True)
+        >>> ar.id_of("Student Name")
+        400
         >>> df1 = pd.DataFrame({
-        ...             "id": ["name1",],
+        ...             "sis_id": ["name1",],
         ...             "st_name":["Student Name",]
         ...         })
-        >>> converter.reindex_by_id(df1, "st_name", expect_new=True, collect_new=True)
-                id       st_name
+        >>> ar.reindex_by_id(df1, ["sis_id", "st_name"], expect_new_entities=False, collect_new_aliases=True)
+            sis_id       st_name
         id
         400  name1  Student Name
+        >>> sorted(ar.all_aliases_of(id=400))
+        ['Student Name', 'name1', 'student@gmail.com']
         '''
         if inplace:
             df = df.copy()
@@ -405,8 +519,7 @@ class AliasRecord:
         new_index = self.id_of_df(
             df,
             alias_col,
-            expect_new_entities,
-            collect_new_aliases
+            **kwargs
         )
 
         df.set_index(

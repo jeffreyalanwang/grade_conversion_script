@@ -9,7 +9,7 @@ from pathlib import Path
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 from pandera.typing import DataFrame
-from util.types import StudentPtsById
+from util.custom_types import StudentPtsById
 
 from input import *
 from output import *

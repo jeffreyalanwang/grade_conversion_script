@@ -1,12 +1,11 @@
 import numbers as num
-from typing import *
-
-import pandas
 import pandas as pd
+
+from typing import *
 from pandas._typing import Scalar as pd_scalar
 
 from grade_conversion_script.util import AliasRecord
-from grade_conversion_script.util.types import Matcher # pyright: ignore[reportWildcardImportFromLibrary]
+from grade_conversion_script.util.custom_types import Matcher # pyright: ignore[reportWildcardImportFromLibrary]
 
 # region Typing
 
@@ -96,18 +95,38 @@ def reindex_to[T: pd.Series | pd.DataFrame](to_realign: T, target_ids: pd.Series
     # flip `target_ids`
     target_idx_by_origin_idx = target_ids.index.to_series(index=target_ids)
 
-    # drop values of `to_realign` that do not have dest index
-    to_realign = to_realign[to_realign.index.isin(target_ids)]
-    realigned = to_realign.reindex(index=target_idx_by_origin_idx)
-    assert isinstance(realigned, type(to_realign))
-    realigned.sort_index(inplace=True)
+    realigned = pd.concat(
+        [to_realign, target_idx_by_origin_idx.rename('target_index')],
+        join='inner', # only the rows in common between the two
+        axis='columns'
+    ).set_index(
+        'target_index',
+        drop=True
+    ).squeeze(axis='columns')
+    assert isinstance(realigned, (pd.Series, pd.DataFrame))
+    realigned = realigned.reindex(index=target_ids.index)
+
+    assert type(realigned) == type(to_realign)
+    assert realigned.notna().all(None)  # pyright: ignore[reportArgumentType] pandas-stubs is wrong
 
     return realigned
 
 # endregion pandas
 # region AliasRecord
 
-def best_effort_is_name(s: str):
+def best_effort_is_name(s: str) -> bool:
+    '''
+    Tries to check if a string is a name,
+    as it would appear in Canvas or a
+    web profile.
+
+    >>> list = ['Name One (copy 1)', 'Name One (copy 2)', 'name1', "1"]
+    >>> [best_effort_is_name(s) for s in list]
+    [True, True, False, False]
+    '''
+    if '(' in s and ')' in s[s.index('(')+1:]:
+        s = s[:s.index('(')] + s[s.rindex(')') + 1:]
+
     for letter in s:
 
         # letter is certainly allowed in name
@@ -129,7 +148,11 @@ def best_effort_is_name(s: str):
 
     required_capitalized_words = (words[0], words[-1])
     is_required_capitalized = any(
-        any(letter.isupper() for letter in word) # d'Angelo
+        any(
+            letter.isupper() # d'Angelo
+            or not letter.isalpha()
+            for letter in word
+        )
         for word in required_capitalized_words
     )
 
@@ -165,7 +188,7 @@ def get_unmatched_entities(
     ]
 
     matched_dest_ids = [
-        alias_record.id_of_any(matched_dest_aliases)
+        alias_record.id_together(matched_dest_aliases)
         for matched_dest_aliases in matched_dest_alias_lists
     ]
     unmatched_input_ids = filter(
