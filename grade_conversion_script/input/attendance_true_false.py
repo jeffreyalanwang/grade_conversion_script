@@ -75,7 +75,7 @@ class AttendanceTrueFalse(InputHandler):
 
         # Determine attendance by element
         attendance = input.map(self.is_attended) # handles NaNs
-        
+
         # Output formatting, populate Name/SisId store
         attendance = self.student_aliases.reindex_by_id(
             attendance,
@@ -127,7 +127,7 @@ class AttendanceTrueFalse(InputHandler):
         )
 
         return DataFrame[BoolsById](attendance_merged)
-    
+
     @override
     @pa.check_types
     def get_scores(self, csv: pd.DataFrame | dict[str, pd.DataFrame]) -> DataFrame[StudentPtsById]:
