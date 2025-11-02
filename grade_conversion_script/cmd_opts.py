@@ -50,6 +50,31 @@ def parse_args() -> tuple[Namespace, Namespace]:
                         if item.is_file()]
         )
 
+        # AttendanceTrueFalse
+        attendance_true_false_cmd = input_subparsers \
+            .add_parser(
+                'bool_attendance', # stored under args['input_format']
+                description="generate student attendance from columns",
+                help="`input bool_attendance --help`",
+            )
+        attendance_true_false_cmd.usage = \
+            "bool_attendance ATTENDANCE_POINTS INPUT_CSVS"
+        attendance_true_false_cmd \
+        .add_argument(
+            'attendance_points',
+            type=to_real_number,
+            help='# of points per student per day (int or float)'
+        )
+        attendance_true_false_cmd \
+        .add_argument(
+            'input_csvs',
+            type=str,
+            action='extend',
+            nargs='+',
+            help='CSV files with columns corresponding'
+                 ' to attendance on one or more days'
+        )
+
         # PollEv attendance
         pollev_attendance_cmd = input_subparsers \
             .add_parser(
@@ -259,6 +284,11 @@ def setup_per_args(input_args, output_args) -> Setup_Collection:
     def _prepare_input_handler(args, *, student_id_record) -> InputHandler:
         handler = None
         match args.input_format:
+            case 'bool_attendance':
+                handler = AttendanceTrueFalse(
+                    pts_per_day=args.attendance_points,
+                    student_aliases=student_id_record
+                )
             case 'pollev_attendance':
                 handler = AttendancePollEv(
                     pts_per_day=args.attendance_points,

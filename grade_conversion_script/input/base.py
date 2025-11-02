@@ -8,7 +8,8 @@ from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
 from pandera.typing import DataFrame
-from grade_conversion_script.util.custom_types import StudentPtsById
+from grade_conversion_script.util.custom_types import BoolsById, StudentPtsById
+
 from grade_conversion_script.util import AliasRecord
 
 class InputHandler(ABC):
@@ -38,7 +39,7 @@ class InputHandler(ABC):
         ...
 
 @pa.check_types
-def bool_to_pts(attendance_bools: DataFrame[BoolsById], pts_if_true: num.Real) -> DataFrame[PtsBy_StudentSisId]:
+def bool_to_pts(attendance_bools: DataFrame[BoolsById], pts_if_true: num.Real) -> DataFrame[StudentPtsById]:
     '''
     Replaces boolean attendence values (i.e. per-student, per-day)
     with defined per-class point value configured with `__init__()`.
@@ -61,4 +62,4 @@ def bool_to_pts(attendance_bools: DataFrame[BoolsById], pts_if_true: num.Real) -
     assert all(attendance_pts.index == attendance_bools.index)
     assert all(attendance_pts.columns == attendance_bools.columns)
 
-    return DataFrame[PtsBy_StudentSisId](attendance_pts)
+    return DataFrame[StudentPtsById](attendance_pts)

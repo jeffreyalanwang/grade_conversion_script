@@ -1,12 +1,16 @@
 import pandas as pd
-from .base import InputHandler, bool_to_pts
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
-from pandera.typing import DataFrame, Series
-from util.types import SisId, PtsBy_StudentSisId, BoolsBy_StudentSisId
-from util import NameSisIdConverter
+from pandera.typing import DataFrame
+from grade_conversion_script.util.custom_types import BoolsById, StudentPtsById
+
+from grade_conversion_script.util import AliasRecord
+from .base import InputHandler, bool_to_pts
+
+class NoAttendanceRuleException(Exception):
+    pass
 
 class AttendanceTrueFalse(InputHandler):
     '''
@@ -14,27 +18,50 @@ class AttendanceTrueFalse(InputHandler):
     Input:  data with external schema (True/False or 1/0).
     Output: data with internally guaranteed schema.
 
-    >>> name_sis_id = NameSisIdConverter()
-    >>> attendance_input = AttendanceTrueFalse(2, name_sis_id)
+    >>> student_ar = AliasRecord()
+    >>> attendance_input = AttendanceTrueFalse(2, student_ar)
     >>> attendance_df = pd.DataFrame({'Name':       ['Name One', 'Name Two'],
     ...                               'Attended 1': [99        ,  0        ],
-    ...                               'Attended 2': [True      ,  False    ],})
+    ...                               'Attended 2': ['True'    ,  False    ],})
     >>> attendance_input.get_scores(attendance_df)
-            Attended 1  Attended 2
-    sis_id            
-    name1            2           2
-    name2            0           0
-    >>> str(name_sis_id)
-    "{'Name One': 'name1', 'Name Two': 'name2'}" TODO i know this doesn't work
+         Attended 1  Attended 2
+    id
+    400           2           2
+    401           0           0
+    >>> str(student_ar)
+    "{400: ['Name One'], 401: ['Name Two']}"
     '''
 
-    def __init__(self, pts_per_day: num.Real, name_sis_id_store: NameSisIdConverter):
+    def __init__(self, pts_per_day: num.Real, student_aliases: AliasRecord):
         ''' Set options which vary among input-handlers here. '''
-        super().__init__(name_sis_id_store)
+        super().__init__(student_aliases)
         self.pts_per_day = pts_per_day
 
+    def is_attended(self, element) -> bool:
+        # check rule is defined here
+
+        if isinstance(element, bool):
+            return element
+        if pd.isna(element):
+            return False
+        if str(element).isnumeric():
+            return float(element) > 0
+
+        letter_t = "T" in str(element).upper()
+        letter_f = "F" in str(element).upper()
+        if letter_t and not letter_f:
+            return True
+        if letter_f and not letter_t:
+            return False
+
+        raise NoAttendanceRuleException(
+            f"No rule for bool conversion"
+            f" of value {element}"
+            f" (type {type(element)})"
+        )
+
     @pa.check_types
-    def get_attendance_single_file(self, input: pd.DataFrame) -> DataFrame[BoolsBy_StudentSisId]:
+    def get_attendance_single_file(self, input: pd.DataFrame) -> DataFrame[BoolsById]:
         '''
         Args:
             input: Dataframe with >= 1 columns. Each column is its own day.
@@ -44,50 +71,23 @@ class AttendanceTrueFalse(InputHandler):
             Values are all type `bool`.
         '''
 
+        input = input.set_index(input.columns[0], drop=True)
+
         # Determine attendance by element
+        attendance = input.map(self.is_attended) # handles NaNs
         
-        def has_attended(element) -> bool:
-            if isinstance(element, str) and element.startswith("'"):
-                # clean a quirk Excel might add
-                element = element[1:]
+        # Output formatting, populate Name/SisId store
+        attendance = self.student_aliases.reindex_by_id(
+            attendance,
+            expect_new_entities=True,
+            collect_new_aliases=True,
+            inplace=False
+        )
 
-            # check rule is defined here
-            if isinstance(element, bool):
-                return element
-            if pd.isna(element):
-                return False
-            if str(element).isnumeric():
-                return float(element) > 0
-            
-            letter_t = "T" in str(element).upper()
-            letter_f = "F" in str(element).upper()
-            if letter_t and not letter_f:
-                return True
-            if letter_f and not letter_t:
-                return False
-            
-            raise NotImplementedError(
-                f"No rule for bool conversion"
-                f" of value {element}"
-                f" (type {type(element)})"
-            )
-
-        attendance = input.map(has_attended) # handles NaNs
-        
-        # Output formatting TODO the following ~7 lines
-        student_names: pd.Series = student_rows['First name'] + ' ' + student_rows['Last name']
-        sis_ids = student_rows['Email'] \
-                    .apply(lambda x: SisId.from_email(x) if not pd.isna(x) else None)
-        # set index TODO
-        attendance = attendance.set_axis(sis_ids, axis='index')
-        
-        # Populate Name/SisId store TODO
-        self.name_sis_id_store.addFromCols(sis_ids=sis_ids, names=student_names)
-
-        return DataFrame[BoolsBy_StudentSisId](attendance)
+        return DataFrame[BoolsById](attendance)
 
     @pa.check_types
-    def get_attendance_multi_files(self, files: dict[str, pd.DataFrame]) -> DataFrame[BoolsBy_StudentSisId]:
+    def get_attendance_multi_files(self, files: dict[str, pd.DataFrame]) -> DataFrame[BoolsById]:
         '''
         Args:
             files: Dataframes from files.
@@ -126,11 +126,11 @@ class AttendanceTrueFalse(InputHandler):
                 .astype(bool)
         )
 
-        return DataFrame[BoolsBy_StudentSisId](attendance_merged)
+        return DataFrame[BoolsById](attendance_merged)
     
     @override
     @pa.check_types
-    def get_scores(self, csv: pd.DataFrame | dict[str, pd.DataFrame]) -> DataFrame[PtsBy_StudentSisId]:
+    def get_scores(self, csv: pd.DataFrame | dict[str, pd.DataFrame]) -> DataFrame[StudentPtsById]:
         '''
         Args:
             csv:
@@ -138,7 +138,7 @@ class AttendanceTrueFalse(InputHandler):
                 If a `dict` is provided, each key is the label
                 prefixed to that file's columns in the output DataFrame.
         Returns:
-            A dataframe modeled by PtsBy_StudentSisId.
+            A dataframe modeled by StudentPtsById.
             Columns are the same or prefixed by dict keys.
         '''
         if isinstance(csv, dict):

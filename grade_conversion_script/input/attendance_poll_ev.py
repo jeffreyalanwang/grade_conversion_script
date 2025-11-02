@@ -4,7 +4,7 @@ from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
-from grade_conversion_script.util.types import SisId, StudentPtsById, BoolsById
+from grade_conversion_script.util.custom_types import SisId, StudentPtsById, BoolsById
 
 from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.funcs import pd_scalar, join_str_cols
