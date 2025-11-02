@@ -1,23 +1,24 @@
 from abc import ABC, abstractmethod
+from typing import final
 
 import pandas as pd
 from pandera.typing import DataFrame
-from grade_conversion_script.util.types import PtsBy_StudentSisId
-from grade_conversion_script.util import NameSisIdConverter
+from grade_conversion_script.util.custom_types import StudentPtsById
+from grade_conversion_script.util import AliasRecord
 
 class InputHandler(ABC):
     '''
     Process data with a specific format, using a specific behavior,
-    to extract grades into a DataFrame modeled by `PtsBy_StudentSisId`.
+    to extract grades into a DataFrame modeled by `StudentPtsById`.
 
-    Subclasses must generate a `NameSisIdConverter`.
+    Subclasses must take and populate an `AliasRecord`.
     '''
     @abstractmethod
-    def __init__(self, name_sis_id_store: NameSisIdConverter):
-        self.name_sis_id_store = name_sis_id_store
+    def __init__(self, student_aliases: AliasRecord):
+        self.student_aliases: AliasRecord = student_aliases
 
     @abstractmethod
-    def get_scores(self, csv: pd.DataFrame | dict[str, pd.DataFrame]) -> DataFrame[PtsBy_StudentSisId]:
+    def get_scores(self, csv: pd.DataFrame | dict[str, pd.DataFrame]) -> DataFrame[StudentPtsById]:
         '''
         Args:
             csv:
@@ -25,7 +26,7 @@ class InputHandler(ABC):
                 If a `dict` is provided, each key is the label
                 for that file's column in the output DataFrame.
         Returns:
-            A dataframe modeled by PtsBy_StudentSisId.
+            A dataframe modeled by StudentPtsById.
             If one CSV was provided (i.e. one day), output has
             1 column, labeled 'attendance'.
         '''

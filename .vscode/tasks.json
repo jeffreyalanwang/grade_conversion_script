@@ -4,20 +4,10 @@
 		{
 			"label": "Package: test",
 			"command": "python",
-			"args": ["-m pytest --doctest-modules ${workspaceFolder}/grade_conversion_script"],
+			"args": ["-m ${workspaceFolder}/test pytest --doctest-modules ${workspaceFolder}/grade_conversion_script"],
 			"detail": "Run pytest",
 			"group": {
 				"kind": "test",
-				"isDefault": true
-			}
-		},
-		{
-			"label": "Package: build",
-			"command": "python",
-			"args": ["-m build"],
-			"detail": "Run build (setuptools)",
-			"group": {
-				"kind": "build",
 				"isDefault": true
 			}
 		}

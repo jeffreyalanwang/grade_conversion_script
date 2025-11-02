@@ -1,12 +1,27 @@
 import pandas as pd
+
+from grade_conversion_script.util.funcs import pd_scalar, join_str_cols
 from .base import InputHandler
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
-from grade_conversion_script.util.types import SisId, PtsBy_StudentSisId, BoolsBy_StudentSisId
-from grade_conversion_script.util import NameSisIdConverter
+from grade_conversion_script.util.custom_types import SisId, StudentPtsById, BoolsById
+from grade_conversion_script.util import AliasRecord
+
+class PollEvCheck(Protocol):
+    '''
+    Determine if a row from a PollEv CSV
+    represents a student that should get
+    an attendance point.
+    '''
+    @overload
+    def __call__(self, student_rows: pd.DataFrame, /) -> Series[bool]:
+        ...
+    @overload
+    def __call__(self, student_rows: pd.Series, /) -> bool:
+        ...
 
 class AttendancePollEv(InputHandler):
     '''
@@ -14,41 +29,41 @@ class AttendancePollEv(InputHandler):
     Input:  data with external schema (PollEverywhere export).
     Output: data with internally guaranteed schema.
 
-    >>> name_sis_id = NameSisIdConverter()
-    >>> attendance_input = AttendancePollEv(2, name_sis_id)
+    >>> student_ar = AliasRecord()
+    >>> attendance_input = AttendancePollEv(2, student_ar)
     >>> pollev_df = pd.DataFrame({'First name': ['Name','Name','Average grade','Average participation'],
     ...                           'Last name' : ['One', 'Two', None,           None],
     ...                           'Email'     : ['name1@charlotte.edu','name2@charlotte.edu', None, None],
     ...                           'Grade'     : [99   ,  0,    None,           None]})
     >>> attendance_input.get_scores(pollev_df)
-            attendance
-    sis_id            
-    name1            2
-    name2            0
-    >>> str(name_sis_id)
-    "{'Name One': 'name1', 'Name Two': 'name2'}"
+          attendance
+     id
+    400            2
+    401            0
+    >>> print(student_ar)
+    {400: ["(0, 'Name One')", 'name1', 'name1@charlotte.edu'], 401: ["(1, 'Name Two')", 'name2', 'name2@charlotte.edu']}
     '''
 
     def __init__(
         self,
         pts_per_day: num.Real,
-        name_sis_id_store: NameSisIdConverter,
-        attendance_rule: Callable[
-                             [pd.DataFrame | pd.Series],
-                             Series[bool] | bool
-                         ] | None
-            = None
+        student_aliases: AliasRecord,
+        attendance_rule: PollEvCheck | None = None
     ):
-        ''' Set options which vary among input-handlers here. '''
-        super().__init__(name_sis_id_store)
+        '''
+        Set options which vary among input-handlers here.
+
+        `attendance_rule` MUST be able to properly handle DataFrame AND Series inputs.
+        '''
+        super().__init__(student_aliases)
         self.pts_per_day = pts_per_day
+
         if attendance_rule is not None:
-            self.has_attended = attendance_rule # pyright: ignore[reportAttributeAccessIssue]
+            self.is_attended = attendance_rule # pyright: ignore[reportAttributeAccessIssue] no way to type-hint an overload
 
     @overload
     def is_attended(self, student_rows: pd.DataFrame, /) -> Series[bool]:
         ...
-
     @overload
     def is_attended(self, student_rows: pd.Series, /) -> bool:
         ...
@@ -58,17 +73,16 @@ class AttendancePollEv(InputHandler):
 
         May be overridden by `self.__init__()`.
         '''
-        numeric_grades: pd.Series | num.Real = pd.to_numeric(student_rows['Grade'], errors="coerce")
-        is_na = pd.isna(numeric_grades)
-        is_pos = numeric_grades > 0
+        grades: pd.Series | pd_scalar = student_rows['Grade']
+        numeric_grades = pd.to_numeric(grades, errors="coerce")
 
-        if isinstance(numeric_grades, pd.DataFrame):
-            assert isinstance(is_na, pd.Series)
-            assert isinstance(is_pos, pd.Series)
+        if isinstance(numeric_grades, pd.Series):
+            is_na = pd.isna(numeric_grades)
+            is_pos = numeric_grades > 0
             truthy = (~is_na) & is_pos
         else:
-            assert isinstance(is_na, bool)
-            assert isinstance(is_pos, bool)
+            is_na = pd.isna(numeric_grades)
+            is_pos = numeric_grades > 0
             truthy = (not is_na) and is_pos
 
         if isinstance(truthy, pd.Series):
@@ -77,7 +91,7 @@ class AttendancePollEv(InputHandler):
             return truthy
 
     @pa.check_types
-    def get_single_day_attendance(self, pollev_day: pd.DataFrame) -> DataFrame[BoolsBy_StudentSisId]:
+    def get_single_day_attendance(self, pollev_day: pd.DataFrame) -> DataFrame[BoolsById]:
         '''
         Args:
             pollev_day: Dataframe from one PollEv export CSV.
@@ -105,34 +119,37 @@ class AttendancePollEv(InputHandler):
                             axis='columns' # passes one row to function at a time
                         ).squeeze()
         assert isinstance(attendance, pd.Series)
-        
-        # Output formatting
-        student_names: pd.Series = student_rows['First name'] + ' ' + student_rows['Last name']
-        sis_ids = student_rows['Email'] \
-                    .apply(lambda x: SisId.from_email(x)
-                                     if not pd.isna(x) else None)
-        # drop NaNs before we reindex
-        to_drop = student_names.isna() | sis_ids.isna()
-        sis_ids = sis_ids[~to_drop]
-        student_names = student_names[~to_drop]
-        attendance = attendance[~to_drop]
-        # set index
-        attendance = attendance.set_axis(sis_ids, axis='index')
-        # set labels
-        attendance = attendance \
-                        .rename("attended") \
-                        .rename_axis("sis_id", axis='index')
-        # convert Series to DataFrame
-        assert isinstance(attendance, pd.Series)  
-        attendance = attendance.to_frame()
-        
-        # Populate Name/SisId store        
-        self.name_sis_id_store.addFromCols(sis_ids=sis_ids, names=student_names)
 
-        return DataFrame[BoolsBy_StudentSisId](attendance)
+        # drop NaNs
+        student_rows['First name'].replace('', pd.NA, inplace=True)
+        student_rows['Last name'].replace('', pd.NA, inplace=True)
+        to_drop = student_rows['First name'].isna() & student_rows['Last name'].isna()
+        attendance = attendance[~to_drop]
+
+        # Formatting for return type
+        # generate student aliases
+        student_names = join_str_cols(' ', student_rows[['First name', 'Last name']])
+        emails = student_rows['Email']
+        sis_ids = emails.apply(
+            lambda x: (
+                SisId.from_email(x)
+                if not pd.isna(x) and x != '' else None
+            )
+        )
+        # set index for column, row
+        attendance.name = "attended"
+        attendance = self.student_aliases.reindex_by_id(
+            attendance.to_frame(),
+            [student_names, emails, sis_ids],
+            expect_new_entities=True,
+            collect_new_aliases=True,
+            inplace=False
+        )
+
+        return DataFrame[BoolsById](attendance)
 
     @pa.check_types
-    def get_multi_day_attendance(self, pollev_days: dict[str, pd.DataFrame]) -> DataFrame[BoolsBy_StudentSisId]:
+    def get_multi_day_attendance(self, pollev_days: dict[str, pd.DataFrame]) -> DataFrame[BoolsById]:
         '''
         Args:
             pollev_days: Dataframe from PollEv export CSVs.
@@ -174,12 +191,12 @@ class AttendancePollEv(InputHandler):
         actual_column_names: list[str] = attendance_multi_day.columns.to_list()
         assert expected_column_names == actual_column_names
 
-        return DataFrame[BoolsBy_StudentSisId](attendance_multi_day)
+        return DataFrame[BoolsById](attendance_multi_day)
     
     @pa.check_types
-    def attendance_bool_to_pts(self, attendance_bools: DataFrame[BoolsBy_StudentSisId]) -> DataFrame[PtsBy_StudentSisId]:
+    def attendance_bool_to_pts(self, attendance_bools: DataFrame[BoolsById]) -> DataFrame[StudentPtsById]:
         '''
-        Replaces boolean attendence values (i.e. per-student, per-day)
+        Replaces boolean attendance values (i.e. per-student, per-day)
         with defined per-class point value configured with `__init__()`.
 
         Args:
@@ -200,11 +217,11 @@ class AttendancePollEv(InputHandler):
         assert all(attendance_pts.index == attendance_bools.index)
         assert all(attendance_pts.columns == attendance_bools.columns)
 
-        return DataFrame[PtsBy_StudentSisId](attendance_pts)
+        return DataFrame[StudentPtsById](attendance_pts)
     
     @override
     @pa.check_types
-    def get_scores(self, csv: pd.DataFrame | dict[str, pd.DataFrame]) -> DataFrame[PtsBy_StudentSisId]:
+    def get_scores(self, csv: pd.DataFrame | dict[str, pd.DataFrame]) -> DataFrame[StudentPtsById]:
         '''
         Args:
             csv:

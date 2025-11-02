@@ -20,9 +20,9 @@ Repository = "https://github.com/jeffreyalanwang/grade_conversion_script.git"
 [project.scripts]
 grade-convert = "grade_conversion_script.__main__:main"
 
-[tool.dev] # not a real key, just for info
-test = "test_all.py"
-build = "build.py"
+[tool.pytest.ini_options]
+python_files = "test/*.py"
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "IGNORE_EXCEPTION_DETAIL"]
 
 [tool.setuptools.packages.find]
 include = [

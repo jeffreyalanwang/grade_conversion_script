@@ -1,18 +1,20 @@
 import enum
+from itertools import chain
 import pandas as pd
 from pathlib import Path
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
 import pandera.pandas as pa
+from numpy.ma.extras import row_stack
 from pandera.typing import DataFrame
 
 from .base import OutputFormat
 
-from grade_conversion_script.util import NameSisIdConverter
-from grade_conversion_script.util.types import SisId, PtsBy_StudentSisId
-from grade_conversion_script.util.funcs import iter_by_element, is_pd_value_present
-from grade_conversion_script.util.tui import interactive_rubric_criteria_match, interactive_name_sis_id_match
+from grade_conversion_script.util import AliasRecord
+from grade_conversion_script.util.custom_types import Matcher, RubricMatcher, SisId, StudentPtsById
+from grade_conversion_script.util.funcs import associate_unrecognized_entities, best_effort_is_name, contains_row_for, iter_by_element, is_pd_value_present, reindex_to
+from grade_conversion_script.util.tui import interactive_rubric_criteria_match, interactive_alias_match
 
 class CanvasEnhancedRubricOutputFormat(OutputFormat):
     '''
@@ -21,207 +23,289 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
     Does not consider Rating label when determining
     whether an action would overwrite an existing grade.
 
-    >>> name_sis_id = NameSisIdConverter()
-    >>> name_sis_id.add(sis_id='name1', name='Name One')
+    >>> student_ar = AliasRecord()
     >>> rubric_csv = pd.DataFrame({
     ...                         'Student Name':           ["Name One",],
     ...                         'Criterion 1 - Rating':   ["Any Text",],
     ...                         'Criterion 1 - Points':   ["",        ],
     ...                         'Criterion 1 - Comments': ["",        ],
     ...                         'Criterion 2 - Rating':   ["",        ],
-    ...                         'Criterion 2 - Points':   [5,         ],
+    ...                         'Criterion 2 - Points':   ["",        ],
     ...                         'Criterion 2 - Comments': ["excused", ],
     ...                     })
+    >>> def raise_if_match(*args, **kwargs) -> str:
+    ...     from itertools import chain
+    ...     if any(obj for obj in chain(args, kwargs.values())):
+    ...         raise Exception("Matching not expected")
+    ...     return dict()
     >>> cerubric_output = CanvasEnhancedRubricOutputFormat(
-    ...                         rubric_csv,
-    ...                         name_sis_id,
-    ...                         name_sis_id_match=lambda out, names_to_match, sis_ids_to_match: Exception(
-    ...                                                 f"{out};{names_to_match};{sis_ids_to_match}"
-    ...                                             ),
-    ...                         rubric_criteria_match=( lambda given_labels, dest_labels: dict(zip(given_labels, dest_labels)) ),
-    ...                         replace_existing=False,
-    ...                         warn_existing=True
-    ...                     )
+    ...     rubric_csv,
+    ...     student_ar,
+    ...     unrecognized_name_match=raise_if_match,
+    ...     rubric_criteria_match=(
+    ...         lambda given_labels, dest_labels:
+    ...             dict(zip(given_labels, dest_labels))
+    ...     ),
+    ...     replace_existing=False,
+    ...     warn_existing=True
+    ... )
+
+    >>> student_ar.add_together(['name1', 'Name One'])
+    >>> student_ar.id_of('name1')
+    400
     >>> grades = pd.DataFrame({
-    ...                         'sis_id':      ['name1',],
-    ...                         'Criterion 1': [3,      ],
-    ...                         'Criterion 2': [4,      ]
-    ...                     }).set_index('sis_id', drop=True)
+    ...     'id'   : [400,],
+    ...     'crit1': [3,  ],
+    ...     'crit2': [4,  ],
+    ... }).set_index('id', drop=True)
+    >>> grades
+         crit1  crit2
+     id
+    400      3      4
+
     >>> new_csv = cerubric_output.format(grades)
-    Keeping old grade of 5 at name1, Criterion 2 (Rating "" and Comment "excused")
+    Keeping existing grade values:
+        	(student: Name One,	criterion: Criterion 2)	(Comment: excused)
     >>> new_csv[['Student Name', 'Criterion 1 - Points', 'Criterion 2 - Points']]
-          Student Name Criterion 1 - Points  Criterion 2 - Points
-    name1     Name One                    3                     5
+      Student Name  Criterion 1 - Points  Criterion 2 - Points
+    0     Name One                     3                   NaN
     '''
+
+    class CriterionField(enum.Enum):
+        PTS_LABEL = " - Rating"
+        PTS = " - Points"
+        COMMENTS = " - Comments"
+
+        def col_name_for(self, criterion: str) -> str:
+            return criterion + self.value
+
+        @classmethod
+        def remove_field_suffix(cls, col_name: str) -> str:
+            field = cls.get_field_type(col_name)
+            if not field:
+                raise ValueError(f"{col_name} does not end in known field suffix")
+            return col_name.removesuffix(field.value)
+
+        @classmethod
+        def get_field_type(cls, col_name: str) -> Self | None:
+            for field in cls:
+                if col_name.endswith(field.value):
+                    return field
+            return None
 
     def __init__(
             self,
             rubric_csv: pd.DataFrame,
-            name_sis_id_converter: NameSisIdConverter,
+            student_aliases: AliasRecord,
+            unrecognized_name_match: Matcher[str, str] = interactive_alias_match,
+            rubric_criteria_match: RubricMatcher = interactive_rubric_criteria_match,
+            *,
             replace_existing: bool,
-            warn_existing: bool,
-            name_sis_id_match=interactive_name_sis_id_match,
-            rubric_criteria_match=interactive_rubric_criteria_match
+            warn_existing: bool
         ):
-        super().__init__()
-        
-        self.name_sis_id_converter = name_sis_id_converter
-            # note: may not be populated at __init__() call time
-        
+        super().__init__(student_aliases)
+
         self.rubric_template = rubric_csv
         
         self.replace_existing = replace_existing
         self.warn_existing = warn_existing
 
-        self.name_sis_id_match = name_sis_id_match
+        self.unrecognized_name_match = unrecognized_name_match
         self.rubric_criteria_match = rubric_criteria_match
+
+    def merge_conflict_values(self, existing: pd.DataFrame, incoming: pd.DataFrame, index_to_alias_id: pd.Series, full_existing: pd.DataFrame) -> tuple[pd.DataFrame, str | None]:
+        '''
+        Columns of `existing` and `incoming` have ' - Points' suffix'.
+        '''
+        # constants
+        subline_start = "\n    "
+        tab = "\t"
+        def conflicts_detail():
+            for row, col, new_val in iter_by_element(incoming):
+                if pd.isna(new_val):
+                    continue
+                assert isinstance(row, (num.Real, str))
+                assert isinstance(col, str)
+
+                existing_val = existing.loc[row, col]
+                alias_id: int = index_to_alias_id[row]
+                student_name = self.student_aliases.best_effort_alias(best_effort_is_name, id=alias_id)
+                criterion = self.CriterionField.remove_field_suffix(col)
+
+                rating= full_existing.loc[row, criterion + self.CriterionField.PTS_LABEL.value]
+                comment = full_existing.loc[row, criterion + self.CriterionField.COMMENTS.value]
+
+                yield (existing_val, new_val, student_name, criterion, rating, comment)
+
+        pd.testing.assert_index_equal(existing.index, incoming.index)
+        assert len(existing.columns) == len(incoming.columns)
+        assert all(x.endswith(" - Points") for x in chain(existing.columns, incoming.columns))
+
+        if existing.empty:
+            return (existing, None)
+
+        if self.replace_existing:
+            values = incoming
+            message = subline_start.join((
+                f"Replacing existing grade values (keeping values for Rating and Comment):",
+                *(
+                    tab.join((
+                        f"{existing_val}",
+                        f"(new: {new_val},",
+                        f"student: {student_name},",
+                        f"criterion: {criterion})",
+                        f"(Rating: {rating},",
+                        f"Comment: {comment})",
+                    ))
+                    for existing_val, new_val, student_name, criterion, rating, comment
+                    in conflicts_detail()
+                )
+            ))
+        else:
+            values = existing
+            message = subline_start.join((
+                f"Keeping existing grade values:",
+                *(
+                    tab.join((
+                        f"{existing_val}",
+                        f"(student: {student_name},",
+                        f"criterion: {criterion})",
+                        f"(Comment: {comment})",
+                    ))
+                    for existing_val, _, student_name, criterion, _, comment
+                    in conflicts_detail()
+                )
+            ))
+
+        return (values, message if self.warn_existing else None)
 
     @override
     @pa.check_types
-    def format(self, grades: DataFrame[PtsBy_StudentSisId]) -> pd.DataFrame:
-        '''
-        Args:
-            grades:
-                One column per rubric criteria.
-                One row per student.
-        Returns:
-            A dataframe which can be saved to file with self.write_file().
-        '''
+    def format(self, grades: DataFrame[StudentPtsById]) -> pd.DataFrame:
 
-        # Translate rubric + input: sis_ids -> names
+        new_rubric = self.rubric_template.copy()
 
-        all_dest_names = self.rubric_template['Student Name'].astype(str).to_list()
-        all_input_names = self.name_sis_id_converter.names
-
-        unrecognized_dest_names = set(all_dest_names) - set(all_input_names)
-        unused_input_names = set(all_input_names) - set(all_dest_names)
-        unused_input_sis_ids = [self.name_sis_id_converter.to_sis_id(x) for x in unused_input_names]
-
-        for sis_id in unused_input_sis_ids:
-            self.name_sis_id_converter.remove_sis_id(sis_id)
-        self.name_sis_id_match(
-            names_to_match=unrecognized_dest_names,
-            sis_ids_to_match=unused_input_sis_ids,
-            out=self.name_sis_id_converter
+        # Perform name matching
+        associate_unrecognized_entities(
+            self.student_aliases,
+            self.unrecognized_name_match,
+            input_ids=grades.index,
+            dest_alias_lists=new_rubric['Student Name']
         )
+        # matching is applied inside of self.student_aliases
 
-        # In order to reindex rubric by sis_id,
-        # each name therein needs a corresponding entry
-        # in `name_sis_id_converter`.
-        #
-        # However, not everyone from rubric is in input `grades` at all.
-        # This means we have no source to get their sis_id from anyways.
-        #
-        # TODO Instead, implement a default_grade option (None | num.Real)
-        all_input_names = self.name_sis_id_converter.names # this value has changed
-        still_unrecognized_dest_names = set(all_dest_names) - set(all_input_names)
-        is_recognized_row_mask = ~(self.rubric_template['Student Name']
-                                   .isin(still_unrecognized_dest_names))        
-
-        rubric_by_sis_id = pd.concat([
-            self.name_sis_id_converter.reindex_by_sis_id(
-                self.rubric_template[is_recognized_row_mask],
-                'Student Name'
-            ),
-            self.rubric_template[~is_recognized_row_mask]
-        ])
-
-        # Translate input: column label -> rubric criterion
-
+        # Perform matching: input column label -> rubric criterion
         user_criteria = grades.columns.to_list()
-        canvas_criteria = self.rubric_template.columns.to_list()
-            # ^ start with all rubric columns
-        canvas_criteria = filter(lambda x: x.endswith(" - Points"), canvas_criteria)
-            # ^ pull one column label for each criteria
-        canvas_criteria = (x[:-1 * len(" - Points")] for x in canvas_criteria)
-            # ^ cut off " - Points" suffix
-
+        canvas_criteria = (
+            self.CriterionField.remove_field_suffix(col_name)
+            for col_name in new_rubric.columns
+            if col_name.endswith(self.CriterionField.PTS.value) # pull one column label for each criterion
+        )
         given_to_dest_criteria = self.rubric_criteria_match(
             given_labels=user_criteria,
             dest_labels=canvas_criteria
         )
-        
         grades.columns = grades.columns.map(given_to_dest_criteria)
-        
-        # Keep around intermediate copy for assert at the end
-        new_rubric = rubric_by_sis_id.copy()
-        
-        # Iterate by `grades` dataframe
-        grades_iter = iter_by_element(grades)
 
-        # if a student was ignored by user, do not iterate over it.
-        # otherwise, we end up searching for it in the rubric, and it
-        # might not exist.
-        grades_iter = filter(
-            lambda loc_in_grades:
-                loc_in_grades.row in self.name_sis_id_converter.sis_ids,
-            grades_iter
+        # Reindex grades to align with output
+        id_by_rubric_row = self.student_aliases.id_of_df(
+            new_rubric,
+            'Student Name',
+            expect_new_entities=True,
+            collect_new_aliases=True
+        )
+        incoming_grades_aligned_rows = cast(
+            pd.DataFrame,
+            reindex_to(
+                to_realign=grades,
+                target_ids=id_by_rubric_row
+            )
         )
 
-        for student, criterion, param_score in grades_iter:
-            # Get corresponding columns in Canvas enhanced rubric CSV
-            SemanticLabel = enum.Enum('SemanticLabel', ['PTS_LABEL', 'PTS', 'COMMENTS'])
-            criterion_csv_headers: dict[SemanticLabel, str] = \
-            {
-                semantic_label: criterion + suffix
-                for semantic_label, suffix in {
-                                        # These go after the criterion name
-                                        SemanticLabel.PTS_LABEL: " - Rating",
-                                        SemanticLabel.PTS      : " - Points",
-                                        SemanticLabel.COMMENTS : " - Comments"
-                                    }.items()
-            }
-            def get_gradebook_curr(semantic_label: SemanticLabel) -> num.Real | str:
-                col_header = criterion_csv_headers[semantic_label]
-                value = new_rubric.at[student, col_header]
-                assert isinstance(value, (num.Real, str))
-                return value
-            def set_gradebook_curr(semantic_label: SemanticLabel, value: num.Real | str):
-                col_header = criterion_csv_headers[semantic_label]
-                cast_value = cast(float | int, value) # pyright doesn't know Real is a scalar
-                new_rubric.at[student, col_header] = cast_value
-            
-            # Should we fill the current criterion for the current student?
-            grade_already_present: bool = \
-                any(
-                    is_pd_value_present( get_gradebook_curr(semantic_label) )
-                    for semantic_label in (SemanticLabel.PTS, SemanticLabel.COMMENTS) # ignore Rating label
+        # Resolve + Set values (handle replace_existing, warn_existing)
+
+        # determine which elements are conflicting
+        determines_existing = (self.CriterionField.PTS, self.CriterionField.COMMENTS)
+        # `has_existing` and `has_incoming` have
+        # index like `new_rubric` but
+        # columns like `incoming_grades_aligned_rows`.
+        has_existing = (
+            new_rubric.loc[
+                : , (
+                    new_rubric.columns.to_series().map(
+                        lambda col_name:
+                            self.CriterionField.get_field_type(col_name)
+                            in determines_existing
+                    )
                 )
-            should_fill_curr = (not grade_already_present) or self.replace_existing
+            ].groupby( # pyright: ignore[reportUnknownMemberType, reportCallIssue]
+                lambda col: self.CriterionField.remove_field_suffix(col),
+                as_index=True,
+                sort=False,
+                axis='columns'
+            ).apply(
+                lambda group: (group.notna() & ~group.eq('')).any(axis="columns"),
+            )
+        )
+        has_incoming: pd.DataFrame = (
+            incoming_grades_aligned_rows
+            .notna()
+            .reindex(
+                fill_value=bool(False),
+                index=new_rubric.index
+            )
+        )
+        conflicting = has_existing & has_incoming
+        conflicting_aligned_2D = conflicting.rename(columns=self.CriterionField.PTS.col_name_for)
+        non_conflicting = (~has_existing) & has_incoming
+        non_conflicting_aligned_2D = non_conflicting.rename(columns=self.CriterionField.PTS.col_name_for)
 
-            # Print warning if requested
-            should_warn_curr = self.warn_existing and grade_already_present
-            if should_warn_curr:
-                match should_fill_curr:
-                    case True:
-                        message = (
-                            f'Replacing old grade of {get_gradebook_curr(SemanticLabel.PTS)}'
-                            f' with new grade {param_score} at {student},'
-                            f' {criterion} (keeping Rating of "{get_gradebook_curr(SemanticLabel.PTS_LABEL)}"'
-                            f' and Comment of "{get_gradebook_curr(SemanticLabel.COMMENTS)}")'
-                        )
-                    case False:
-                        message = (
-                            f'Keeping old grade of {get_gradebook_curr(SemanticLabel.PTS)}'
-                            f' at {student}, {criterion} (Rating'
-                            f' "{get_gradebook_curr(SemanticLabel.PTS_LABEL)}"'
-                            f' and Comment "{get_gradebook_curr(SemanticLabel.COMMENTS)}")'
-                        )
-                print(message)
+        # rename incoming grades to end with ' - Points' for convenience
+        incoming_grades_aligned_2D = incoming_grades_aligned_rows.rename(
+            columns = lambda col_name: (
+                self.CriterionField.PTS.col_name_for(col_name)
+            )
+        )
 
-            # Fill score for curr criterion & student
-            if should_fill_curr:
-                set_gradebook_curr(SemanticLabel.PTS, param_score)
-        
+        # set conflicting
+        conflict_vals, warning_msg = self.merge_conflict_values(
+            existing = new_rubric.where(conflicting_aligned_2D)
+                        .dropna(axis=0, how='all').dropna(axis=1, how='all'),
+            incoming = incoming_grades_aligned_2D.where(conflicting_aligned_2D)
+                        .dropna(axis=0, how='all').dropna(axis=1, how='all'),
+            index_to_alias_id = id_by_rubric_row,
+            full_existing = new_rubric
+        )
+        new_rubric.mask(
+            conflicting_aligned_2D.reindex_like(new_rubric).fillna(False),
+            other=conflict_vals,
+            inplace=True
+        )
+        if warning_msg:
+            print(warning_msg)
+
+        # set non-conflicting
+        non_conflict_vals = incoming_grades_aligned_2D[non_conflicting_aligned_2D]
+        new_rubric = new_rubric.mask(
+            non_conflicting_aligned_2D.reindex_like(new_rubric).fillna(False),
+            other=non_conflict_vals
+        )
+
+        # Return, asserts
+
         # We only touched "Points" columns that were specified in the input
         modified_columns: list[str] = [f"{criterion} - Points"
                                        for criterion in grades.columns]
-        assert (
-            rubric_by_sis_id
-                .drop(modified_columns, axis='columns', inplace=False)
-        ).equals(
-            new_rubric
-                .drop(modified_columns, axis='columns', inplace=False)
+        new_rubric[modified_columns] = (
+            new_rubric[modified_columns].apply(pd.to_numeric, downcast='integer')
+        )
+
+        pd.testing.assert_frame_equal(
+            self.rubric_template[[*new_rubric.columns]].fillna('')
+                .drop(modified_columns, axis='columns', inplace=False),
+            new_rubric.fillna('')
+                .drop(modified_columns, axis='columns', inplace=False),
+            check_dtype=False,
         )
 
         return new_rubric

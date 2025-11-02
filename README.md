@@ -91,9 +91,8 @@ Save result to `./output.csv`.
 
 ## Tests
 
-Currently the only tests available are docstring examples, which can be tested using `doctest`;
-they can easily be checked all at once by running:
 ```console
 pip install pytest
-pytest --doctest-modules ./grade_conversion_script
+pytest ./test --doctest-modules ./grade_conversion_script
+pytest .
 ```
