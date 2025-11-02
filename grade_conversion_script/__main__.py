@@ -9,7 +9,7 @@ from pathlib import Path
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 from pandera.typing import DataFrame
-from grade_conversion_script.util.types import PtsBy_StudentSisId
+from grade_conversion_script.util.custom_types import StudentPtsById
 
 from grade_conversion_script.input import *
 from grade_conversion_script.output import *
@@ -22,7 +22,7 @@ def process_input_file(handler: InputHandler, files: Iterable[Path]):
     scores = handler.get_scores(read_dfs)
     return scores
 
-def create_output_file(scores: DataFrame[PtsBy_StudentSisId], handler: OutputFormat, filepath: Path):
+def create_output_file(scores: DataFrame[StudentPtsById], handler: OutputFormat, filepath: Path):
     ''' Process and write grades to external format. '''
 
     out_df = handler.format(scores)

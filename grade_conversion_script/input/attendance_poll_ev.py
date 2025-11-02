@@ -96,7 +96,7 @@ class AttendancePollEv(InputHandler):
         Args:
             pollev_day: Dataframe from one PollEv export CSV.
         Returns:
-            A one-column DataFrame modeled by `DataBy_StudentSisId`.
+            A one-column DataFrame modeled by `BoolsById`.
             Values are all type `bool`.
             The column has the generic label 'attended'.
         '''
@@ -157,7 +157,7 @@ class AttendancePollEv(InputHandler):
                 vals: DataFrames of PollEv export CSV
                       (each is one day of attendance).
         Returns:
-            A multi-column dataframe modeled by `DataBy_StudentSisId`.
+            A multi-column dataframe modeled by `BoolsById`.
             Values are all type `bool`.
             One column exists for each entry in the input dict,
             with the given label.
@@ -229,7 +229,7 @@ class AttendancePollEv(InputHandler):
                 If a `dict` is provided, each key is the label
                 for that file's column in the output DataFrame.
         Returns:
-            A dataframe modeled by PtsBy_StudentSisId.
+            A dataframe modeled by StudentPtsById.
             If one CSV was provided (i.e. one day),
             output has 1 column, labeled 'attendance'.
         '''

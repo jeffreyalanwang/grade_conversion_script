@@ -5,10 +5,10 @@ import pandas as pd
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 
-from util import EnumAction, AliasRecord
-from util.funcs import to_real_number
-from input import *
-from output import *
+from grade_conversion_script.util import EnumAction, AliasRecord
+from grade_conversion_script.util.funcs import to_real_number
+from grade_conversion_script.input import *
+from grade_conversion_script.output import *
 
 '''
 To add a new command option, modify `setup_per_args` to handle
@@ -262,7 +262,7 @@ def setup_per_args(input_args, output_args) -> Setup_Collection:
             case 'pollev_attendance':
                 handler = AttendancePollEv(
                     pts_per_day=args.attendance_points,
-                    name_sis_id_store=student_id_record
+                    student_aliases=student_id_record
                 )
             case _:
                 raise ValueError
@@ -274,6 +274,7 @@ def setup_per_args(input_args, output_args) -> Setup_Collection:
                 handler = CanvasGradebookOutputFormat(
                     gradebook_csv=pd.read_csv(args.csv_template),
                     assignment_header=args.header,
+                    student_aliases=student_id_record,
                     sum=True, # This program only supports one assignment at a time
                     if_existing=( args.if_existing
                                     if hasattr(args, "if_existing")
@@ -286,11 +287,11 @@ def setup_per_args(input_args, output_args) -> Setup_Collection:
                 )
             case 'acr':
                 handler = AcrOutputFormat(
-                    name_sis_id_converter=student_id_record
+                    student_aliases=student_id_record
                 )
             case 'e_rubric':
                 handler = CanvasEnhancedRubricOutputFormat(
-                    name_sis_id_converter=student_id_record,
+                    student_aliases=student_id_record,
                     rubric_csv=pd.read_csv(args.csv_template),
                     replace_existing=(args.replace
                                         if args.replace is not None
@@ -306,7 +307,7 @@ def setup_per_args(input_args, output_args) -> Setup_Collection:
 
         # Create shared resources
 
-        shared_student_id_record = NameSisIdConverter()
+        shared_student_id_record = AliasRecord()
         """ Links `SisId`s and names as seen in the input file. """
 
         # Create handlers
