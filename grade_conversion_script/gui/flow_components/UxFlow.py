@@ -5,6 +5,7 @@ from string import Template
 from typing import Final
 
 from nicegui import ElementFilter, ui, Event
+from nicegui.element import Element
 from nicegui.elements.mixins.disableable_element import DisableableElement
 
 NO_VISUAL_DISABLE_CLASS = 'visual_state_no_disable'
@@ -126,7 +127,7 @@ class VisualState(Enum):
             case State.CONTINUE_REQUIRED:
                 return cls.COMPLETE_INDICATED
 
-class FlowStepElement(ui.element):
+class FlowStepElement(Element):
     def __init__(self, initial_state: State = State.NOT_START_READY, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

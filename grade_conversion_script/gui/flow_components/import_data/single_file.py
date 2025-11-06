@@ -6,6 +6,7 @@ from typing import NamedTuple, Final
 
 import pandas as pd
 from nicegui import ui, Event, events, run, html as ui_html
+from nicegui.element import Element
 
 from grade_conversion_script.gui.base_components.inner_loading import InnerLoadingContainer
 from grade_conversion_script.util.funcs import set_light_dark, wait_for_event, truncate_exception_to_html
@@ -18,7 +19,7 @@ class DataImportEntry(NamedTuple):
     df: pd.DataFrame
 
 
-class ImportDataSingleFile(ui.element):
+class ImportDataSingleFile(Element):
 
     class Page(IntEnum):
         UPLOAD = InnerLoadingContainer.State.BEFORE

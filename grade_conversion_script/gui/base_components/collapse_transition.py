@@ -1,7 +1,7 @@
 from typing import Literal, override
-from nicegui import ui
+from nicegui.element import Element
 
-class CollapseTransition(ui.element, component='CollapseTransition.vue'):
+class CollapseTransition(Element, component='CollapseTransition.vue'):
     def __init__(
         self,
         name: str = 'collapse',
@@ -11,7 +11,7 @@ class CollapseTransition(ui.element, component='CollapseTransition.vue'):
     ):
         ''' Starts closed. '''
         super().__init__()
-        self.props(add=
+        _ = self.props(add=
             f'name={name}'
             f' dimension={dimension}'
             f' duration={ms_duration}'
@@ -27,4 +27,4 @@ class CollapseTransition(ui.element, component='CollapseTransition.vue'):
     ) -> None:
         # runs when Visibility().visibility is set.
         # replaces the original behavior (setting "hidden" prop)
-        self.run_method('setVisible', visible)
+        _ = self.run_method('setVisible', visible)

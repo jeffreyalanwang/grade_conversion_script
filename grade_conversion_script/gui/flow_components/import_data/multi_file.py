@@ -1,4 +1,3 @@
-import sys
 from typing import Callable, NamedTuple, Final, cast
 from enum import IntEnum
 from types import NoneType
@@ -449,7 +448,7 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
 _ = ImportDataFlowStep.default_style(add="min-width: 20rem; min-height: 20rem;")
 
 if __name__ in {"__main__", "__mp_main__"}:
-    import logging
+    import logging, sys
     logging.basicConfig(level=logging.INFO,stream=sys.stdout)
 
     with ui.row():
