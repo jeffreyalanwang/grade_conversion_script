@@ -6,8 +6,10 @@ import pandera.pandas as pa
 from pandera.errors import SchemaError
 
 
-IndexFlag = Enum('Index', 'Index')
-Index = IndexFlag.Index
+IndexFlag = Enum('IndexFlag', 'Index')
+# to minimize confusion, Index is referenced as IndexFlag.Index
+NoChangeFlag = Enum('NoChangeFlag', 'NoChange')
+NoChange = NoChangeFlag.NoChange
 
 type IterableOfStr = list[str] | tuple[str] | set[str] | Generator[str]
 
