@@ -1,4 +1,11 @@
+import asyncio
+from itertools import batched
 import numbers as num
+from secrets import randbits
+from time import time_ns
+from typing import Callable
+
+from nicegui.element import Element
 import pandas as pd
 
 from typing import *
@@ -7,6 +14,166 @@ from pandas._typing import Scalar as pd_scalar
 from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.custom_types import Matcher # pyright: ignore[reportWildcardImportFromLibrary]
 
+# region Iteration
+
+def multifilter[T](iterable: Iterable[T], *funcs: Callable[[T], bool]) -> Iterable[T]:
+    ''' Pass an Iterable through multiple filters. '''
+    def combined_filter(item: T) -> bool:
+        return all(
+            single_filter(item)
+            for single_filter in funcs
+        )
+    return filter(combined_filter, iterable)
+
+def index_where[T](filter: Callable[[T], bool], iterable: Iterable[T]) -> int:
+    '''
+    Return index of first item in `iterable`
+    for which `filter` returns True.
+
+    Raises ValueError if no matching item found.
+    '''
+    matching_indexes = (
+        i
+        for i, item in enumerate(iterable)
+        if filter(item)
+    )
+    try:
+        parent_data_loc = next(matching_indexes)
+    except StopIteration:
+        raise ValueError(f"No matching item found in {iterable}.")
+    else:
+        return parent_data_loc
+
+def tuple_insert[T](index: int, value: T, tup: Sequence[T]) -> tuple[T, ...]:
+    ''' Insert `value` into `tup` at `index`. '''
+    return (
+        *tup[:index],
+        value,
+        *tup[index:]
+    )
+
+def tuple_pop[T](index: int, tup: Sequence[T]) -> tuple[T, tuple[T, ...]]:
+    ''' Pop value from `tup` at `index`. '''
+    popped = tup[index]
+    rest = (*tup[:index], *tup[index+1:])
+    return (popped, rest)
+
+def tuple_replace[T](index: int, value: T, tup: Sequence[T]) -> tuple[T, ...]:
+    ''' Replace value at `index` in `tup` with `value`. '''
+    return (
+        *tup[:index],
+        value,
+        *tup[index+1:]
+    )
+
+# endregion Iteration
+# region Async
+
+async def wait_for_event[T0, *T, _, *U, __](
+    callback_register_func: Callable[
+        [
+            Callable[[T0, *T], None],
+        ],
+        _
+    ],
+    error_register_func: Callable[
+        [
+            Callable[[*U], None]
+        ],
+        __
+    ] | None = None
+) -> tuple[T0, *T]:
+
+    awaitable: asyncio.Future[tuple[T0, *T]]
+    awaitable = asyncio.get_running_loop().create_future()
+    event_done = False
+    def event_callback(a: T0, *args: *T, **kwargs):
+        nonlocal event_done, awaitable
+        args_tuple = (a, *args, *kwargs.values())
+        if not event_done:
+            event_done = True
+            awaitable.set_result(args_tuple)
+    _ = callback_register_func(event_callback)
+
+    if error_register_func is None:
+        return await awaitable
+
+    def event_error_callback(*args: *U, **kwargs):
+        nonlocal event_done, awaitable
+        if not event_done:
+            event_done = True
+            exception_data = (args, kwargs)
+            awaitable.set_exception(
+                Exception(exception_data)
+            )
+    _ = error_register_func(event_error_callback)
+
+    return await awaitable
+
+def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
+    try:
+        _ = asyncio.create_task(coro)
+    except RuntimeError:
+        with asyncio.Runner() as runner:
+            runner.run(coro)
+
+# endregion Async
+# region gui
+
+def set_light_dark[*P](element: Element, on_resolve: Callable[[Element, *P], Any], if_light: tuple[*P], if_dark: tuple[*P]) -> None:
+    async def async_by_light_dark(element: Element, on_resolve: Callable[[Element, *P], Any], if_light: tuple[*P], if_dark: tuple[*P]):
+        dark_background = await element.get_computed_prop('dark')
+        if dark_background:
+            on_resolve(element, *if_dark)
+        else:
+            on_resolve(element, *if_light)
+
+    run_async(async_by_light_dark(element, on_resolve, if_light, if_dark))
+
+def unique_readable_html_safe(char_length: int = 5):
+    # char_bit_size = 5
+    # char_max_val + 1 = 32
+
+    unique_bits = randbits(char_length * 5)
+
+    result = list[str]()
+    for _ in range(char_length):
+        bit_chunk = unique_bits & ( (1 << 5) - 1 )
+        unique_bits >>= 5
+
+        if bit_chunk < 26:
+            char = chr(bit_chunk + ord('a'))
+            result.append(char)
+        else:
+            bit_chunk -= 26
+            char = ('A', 'E', 'I', 'O', 'U', 'Y')[bit_chunk]
+            result.append(char)
+
+    return ''.join(result)
+
+def truncate_exception_to_html(exception: Exception):
+    lines = str(exception).splitlines()
+    truncate_idx = next(
+        (
+            i
+            for i, line in enumerate(lines)
+            if 'traceback' in line.lower()
+        ),
+        10
+    )
+    truncated_html = '<br>'.join(
+        [
+            line[:100] + ('...' if len(line) > 100 else '')
+            for line in lines[:truncate_idx]
+        ] + (
+            ['...', ]
+            if len(lines) > truncate_idx else []
+        )
+    )
+    return truncated_html
+
+
+# endregion gui
 # region Typing
 
 def add_tuples[T: tuple[Any, ...]](a: T, b: T) -> T:
