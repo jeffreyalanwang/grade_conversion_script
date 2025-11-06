@@ -1,11 +1,14 @@
 # We need to make sure non-packaged dependencies
 # (i.e. packages with native extension code, e.g. pandas)
 # are available
+import os
 from grade_conversion_script.bootstrap_utils import ensure_pkg_dependencies
 ensure_pkg_dependencies()
 
-import pandas as pd
+import sys
 from pathlib import Path
+import logging
+import pandas as pd
 
 from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 from pandera.typing import DataFrame
@@ -57,5 +60,18 @@ def main():
     create_output_file(data, handlers.output, output_file_path)
     print(f"Result saved to {output_file_path}.")
 
+def gui_main():
+    from grade_conversion_script.gui.start_app import app
+    logging.basicConfig(
+        level=logging.ERROR,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        filename=os.path.expanduser("~/Desktop"),
+        filemode="a"  # Append to the file (default)
+    )
+    app()
+
 if __name__ == '__main__':
-    main()
+    if 'gui' in sys.argv:
+        gui_main()
+    else:
+        main()

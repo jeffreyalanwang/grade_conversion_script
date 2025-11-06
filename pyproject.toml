@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gui = ["nicegui"]
+gui = ["nicegui", "pywebview"]
 dev = ["pytest", "build"]
 
 [project.urls]
@@ -20,6 +20,9 @@ Repository = "https://github.com/jeffreyalanwang/grade_conversion_script.git"
 
 [project.scripts]
 grade-convert = "grade_conversion_script.__main__:main"
+
+[project.gui-scripts]
+grade-convert-app = "grade_conversion_script.__main__:gui_main"
 
 [tool.pytest.ini_options]
 python_files = "test/*.py"
@@ -34,6 +37,9 @@ include = [
     "grade_conversion_script.bootstrap_utils", "grade_conversion_script.cmd_opts"
 ]
 exclude = [".*", "dist*", "*test*", "*build.py"]
+
+[tool.setuptools.package-data]
+grade_conversion_script.gui = ["base_components/*.vue"]
 
 [tool.pyright]
 # Specify the type checking mode. Options include "off", "basic", "standard", "strict", "recommended", and "all".

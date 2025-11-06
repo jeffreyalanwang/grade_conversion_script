@@ -5,3 +5,7 @@
 # Build artifacts
 dist/
 *.egg-info
+
+# nicegui runtime files
+package-lock.json
+node_modules/
