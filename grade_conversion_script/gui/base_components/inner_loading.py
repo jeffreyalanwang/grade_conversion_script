@@ -89,10 +89,9 @@ class InnerLoadingContainer(Element):
         *args,
         spinner_size: str = '4em',
         spinner_color: str | None = 'primary',
-        tag: str = 'inner-loading-container',
          **kwargs
     ) -> None:
-        super().__init__(tag=tag)
+        super().__init__()
 
         with self:
             self.before: Final = ui.element().classes(add='before-slot-holder')

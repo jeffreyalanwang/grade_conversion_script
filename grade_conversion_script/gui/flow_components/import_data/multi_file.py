@@ -157,12 +157,11 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
     def __init__(
         self,
         initial_state: UxFlow.State = UxFlow.State.START_READY,
-        tag: str = 'import-data',
         multi_file: bool = True,
         *args,
         **kwargs
     ):
-        super().__init__(initial_state, tag,*args, **kwargs)
+        super().__init__(initial_state, *args, **kwargs)
 
         # Python props (do not exist in any Vue component)
         self._multi_file: bool = multi_file

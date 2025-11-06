@@ -7,7 +7,6 @@ class InputHandlerSelector(UxFlow.FlowStepElement):
     def __init__(
         self,
         initial_state: UxFlow.State = UxFlow.State.NOT_START_READY,
-        tag: str = 'select-input-handler',
         *args,
         **kwargs
     ):

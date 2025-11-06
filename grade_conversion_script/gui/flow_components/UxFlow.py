@@ -127,8 +127,8 @@ class VisualState(Enum):
                 return cls.COMPLETE_INDICATED
 
 class FlowStepElement(ui.element):
-    def __init__(self, initial_state: State = State.NOT_START_READY, tag: str = 'flow-step', *args, **kwargs):
-        super().__init__(tag=tag, *args, **kwargs)
+    def __init__(self, initial_state: State = State.NOT_START_READY, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         # Set HTML attributes
         _ = self.classes(add='flow-step')

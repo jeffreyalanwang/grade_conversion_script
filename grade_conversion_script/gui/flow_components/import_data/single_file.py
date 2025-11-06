@@ -46,8 +46,8 @@ class ImportDataSingleFile(ui.element):
         self._import_data = value
         self.on_import_data_changed.emit(value)
 
-    def __init__(self, tag: str = 'import-data-single', *args, **kwargs):
-        super().__init__(tag=tag, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         # State, event
         self._import_data: DataImportEntry | None = None
