@@ -64,17 +64,17 @@ class ImportDataSingleFile(Element):
         # Build initial element (uploader)
 
         with self.upload_page:
-            with ui.column().classes('justify-end fit no-wrap') as stack:
+            with ui.column(wrap=False).classes('justify-end fit') as stack:
                 _ = stack.classes('gap-0')
 
-                with ui.row().classes('justify-center w-full no-wrap'):
+                with ui.row(wrap=False).classes('justify-center w-full'):
                     self.uploader_history_msg: Final = (
                         ui.label('History')
                         .classes('italic opacity-75')
                     )
                     self.uploader_history_msg.set_visibility(False)
 
-                with ui.row().classes('justify-center w-full no-wrap'):
+                with ui.row(wrap=False).classes('justify-center w-full'):
                     self.uploader: Final = (
                         ui.upload(
                             multiple=False,
