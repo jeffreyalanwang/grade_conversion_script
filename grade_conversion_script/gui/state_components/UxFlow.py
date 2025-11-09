@@ -201,3 +201,50 @@ class FlowStepElement(Element):
             return
         self._complete = value
         self.on_complete_changed.emit(value)
+
+class FlowStepInputElement[T](FlowStepElement):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._inputs: T | None = None
+        self.on_inputs_changed: Final = Event[T]()
+
+    @property
+    def inputs(self) -> T:
+        assert self._inputs is not None
+        return self._inputs
+    @inputs.setter
+    def inputs(self, values: T):
+        self._inputs = values
+        self.on_inputs_changed.emit(values)
+
+# TODO import_data should be instance of this
+class FlowStepDataElement[T](FlowStepElement):
+    ''' An element which generates data. '''
+
+    def __init__(
+        self,
+        initial_state: State = State.NOT_START_READY,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, initial_state=initial_state, **kwargs)
+        self._data: T | None = None
+        self._on_data_changed: Final = Event[T | None]()
+
+    @property
+    def data(self) -> T | None:
+        return self._data
+    @data.setter
+    def data(self, value: T | None):
+        self._data = value
+        self._on_data_changed.emit(value)
+
+        if value is None:
+            self.state = min(self.state, State.START_READY)
+        else: # we have generated a value
+            self.state = max(self.state, State.CONTINUE_READY)
+
+    @property
+    def on_data_changed(self) -> Event[T | None ]:
+        return self._on_data_changed
