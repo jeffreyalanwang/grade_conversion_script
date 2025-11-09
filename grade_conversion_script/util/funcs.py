@@ -1,18 +1,17 @@
 import asyncio
-from itertools import batched
 import numbers as num
-from secrets import randbits
-from time import time_ns
-from typing import Callable
-
-from nicegui.element import Element
-import pandas as pd
-
+import re
+from random import getrandbits as randbits
 from typing import *
+
+import pandas as pd
+from nicegui.element import Element
 from pandas._typing import Scalar as pd_scalar
 
-from grade_conversion_script.util import AliasRecord
-from grade_conversion_script.util.custom_types import Matcher # pyright: ignore[reportWildcardImportFromLibrary]
+from grade_conversion_script.util.AliasRecord import AliasRecord
+from grade_conversion_script.util.custom_types import \
+    Matcher  # pyright: ignore[reportWildcardImportFromLibrary]
+
 
 # region Iteration
 
