@@ -1,9 +1,11 @@
 from contextlib import contextmanager
 from typing import Literal
-from nicegui.events import Handler, ClickEventArguments
 
 from nicegui import ui
-from grade_conversion_script.gui.base_components.collapse_transition import CollapseTransition
+from nicegui.events import Handler, ClickEventArguments
+
+from grade_conversion_script.gui.base_components.collapse_transition import \
+    CollapseTransition
 
 _ = ui.button.default_props(add=f'ripple={ {'early': True} }')
 
@@ -34,7 +36,7 @@ def TabOptionButton(
     icon: str,
     color: str | None = None,
     on_click: Handler[ClickEventArguments] | None = None,
-    size: Literal['xs'] | Literal['sm'] | Literal['md'] = 'sm',
+    size: Literal['xs', 'sm', 'md'] = 'sm',
 ):
     '''
     Create a button in a `ui.tab`.
