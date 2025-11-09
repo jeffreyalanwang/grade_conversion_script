@@ -1,11 +1,13 @@
 from typing import Literal, override
+
 from nicegui.element import Element
+
 
 class CollapseTransition(Element, component='CollapseTransition.vue'):
     def __init__(
         self,
         name: str = 'collapse',
-        dimension: Literal['height'] | Literal['width'] = 'height',
+        dimension: Literal['height', 'width'] = 'height',
         ms_duration: int = 300,
         easing: str = 'ease-in-out',
     ):
