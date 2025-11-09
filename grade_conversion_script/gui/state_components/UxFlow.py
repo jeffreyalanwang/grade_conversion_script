@@ -8,6 +8,8 @@ from nicegui import ElementFilter, ui, Event
 from nicegui.element import Element
 from nicegui.elements.mixins.disableable_element import DisableableElement
 
+from grade_conversion_script.util.funcs import DebouncedRunner
+
 NO_VISUAL_DISABLE_CLASS = 'visual_state_no_disable'
 '''
 Set this HTML class to indicate that an element
@@ -29,6 +31,28 @@ class VisualState(Enum):
     AVAILABLE = 'flow-step-ready'
     COMPLETE_INDICATED = 'flow-step-complete'
 
+    ui.add_css(
+        shared=True,
+        content=Template(
+            '''
+            @layer components {
+                .$not_ready {
+                    opacity: 0.5;
+                    transition: opacity 0.5s ease-in-out;
+                }
+                .$available {}
+                .$complete_indicated {
+                    opacity: 0.5;
+                    transition: opacity 0.5s ease-in-out;
+                }
+            }
+            ''').substitute(
+                not_ready=NOT_READY,
+                available=AVAILABLE,
+                complete_indicated=COMPLETE_INDICATED
+            )
+    )
+
     @property
     def disables_elements(self) -> bool:
         match self:
@@ -39,26 +63,6 @@ class VisualState(Enum):
             case self.COMPLETE_INDICATED:
                 return True
 
-    ui.add_css(
-        Template('''
-            @layer base_components {
-                .$not_ready {
-                    opacity: 0.5;
-                    transition: opacity 0.5s ease-in-out;                    
-                }
-                .$available {}
-                .$complete_indicated {
-                    opacity: 0.5;
-                    transition: opacity 0.5s ease-in-out;
-                }
-            }
-        ''').substitute(
-            not_ready=NOT_READY,
-            available=AVAILABLE,
-            complete_indicated=COMPLETE_INDICATED
-        )
-    )
-
     @classmethod
     def disabled_sentinel_class_for(cls, element: ui.element) -> str:
         '''
@@ -68,8 +72,6 @@ class VisualState(Enum):
         return f'disabled-by-ux-flow-step-{element.id}'
 
     def set_on(self, element: ui.element):
-        if self.value in element.classes:
-            return
         _ = element.classes(add=self.value)
         if self.disables_elements:
             to_disable = chain(
@@ -77,7 +79,8 @@ class VisualState(Enum):
                 ElementFilter(
                     kind=DisableableElement,
                     local_scope=True
-                ).within(instance=element),
+                )
+                .within(instance=element),
             )
             to_disable = filter(
                 lambda e: NO_VISUAL_DISABLE_CLASS not in e.classes,
@@ -116,7 +119,7 @@ class VisualState(Enum):
                 enum_member.clear_from(element)
 
     @classmethod
-    def from_state(cls, state: State):
+    def from_flow_state(cls, state: State):
         match state:
             case State.NOT_START_READY:
                 return cls.NOT_READY
@@ -134,40 +137,51 @@ class FlowStepElement(Element):
         # Set HTML attributes
         _ = self.classes(add='flow-step')
 
-        # Initialize internal state
-        self._state: State = State.NOT_START_READY
-        self._visual_state: VisualState = VisualState.NOT_READY
-        self.classes(add=self._visual_state.value)
-        self._complete: bool = False
-
         # Make events available
         self.on_state_changed: Final = Event[State]()
         self.on_complete_changed: Final = Event[bool]()
 
+        # Initialize internal state
+        self._state: State | None = None
+        self._visual_state: VisualState | None = None
+        self._complete: bool | None = None
+
+        # Allow setting of state in a debounced manner
+        self._state_debouncer = DebouncedRunner(2)
+
         # Set actual state, immediately triggering internal callbacks
-        with suppress(PropertyNotSetException): # first call will trigger self.visual_state to remove a nonexistent class
-            self.state = initial_state
+        self.set_state_immediately(initial_state)
+
+    def __exit__(self, *_):
+        # apply visual state to any elements that may have been added
+        super().__exit__(*_)
+        self.visual_state.set_on(self)
 
     @property
     def state(self) -> State:
+        assert self._state is not None
         return self._state
     @state.setter
     def state(self, value: State):
         if value == self._state:
             return
+        self._state_debouncer(lambda: self.set_state_immediately(value))
+    def set_state_immediately(self, value: State):
         self._state = value
         self.on_state_changed.emit(value)
-        self.visual_state = VisualState.from_state(value)
+        self.visual_state = VisualState.from_flow_state(value)
         self.complete = self.state >= State.CONTINUE_READY
 
     @property
     def visual_state(self) -> VisualState:
+        assert self._visual_state is not None
         return self._visual_state
     @visual_state.setter
     def visual_state(self, value: VisualState):
         if value == self._visual_state:
             return
-        self._visual_state.clear_from(self)
+        if self._visual_state is not None:
+            self._visual_state.clear_from(self)
         self._visual_state = value
         value.set_on(self)
 
@@ -179,6 +193,7 @@ class FlowStepElement(Element):
     @property
     def complete(self) -> bool:
         ''' Whether the user is done with this step. '''
+        assert self._complete is not None
         return self._complete
     @complete.setter
     def complete(self, value: bool):
