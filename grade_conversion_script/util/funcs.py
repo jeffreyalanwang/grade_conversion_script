@@ -110,14 +110,66 @@ async def wait_for_event[T0, *T, _, *U, __](
     return await awaitable
 
 def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
+    '''
+    Run in current event loop (i.e. nicegui)
+    *or* a new one if none available.
+    '''
     try:
         _ = asyncio.create_task(coro)
     except RuntimeError:
         with asyncio.Runner() as runner:
             runner.run(coro)
 
+class DebouncedRunner:
+    def __init__(self, min_interval: float):
+        ''' min_interval: seconds, minimum delay before a task is run '''
+        self.min_interval = min_interval
+        self.current_task: asyncio.Task[None] | None = None
+
+    def __call__(self, task: Callable[[], None] | Awaitable[None]):
+        '''
+        If `task` is awaitable, call as follows:
+        `run_debounceable(foo_task())`
+        '''
+
+        if self.current_task is not None:
+            _ = self.current_task.cancel() # if already done, does nothing
+
+        async def debounce_task():
+            await asyncio.sleep(self.min_interval)
+            if isinstance(task, Awaitable):
+                await task
+            else:
+                task()
+        self.current_task = run_async(debounce_task())
+
+def wrap_async[**P, RT](async_func: Callable[P, Coroutine[Any, Any, RT]]) -> Callable[P, RT]:
+    '''
+    Call this method in a function with an
+    event loop.
+
+    When the returned callback is called,
+    it will execute `coro` in the same event
+    loop as the original method caller.
+
+    The callback blocks synchronously, so it
+    must be called by a separate thread
+    (e.g. nicegui.run.io_bound).
+
+    Note that the original thread runs `coro`
+    asynchronously, so it does not block.
+    '''
+    loop = asyncio.get_event_loop()
+    def blocking_func(*args: P.args, **kwargs: P.kwargs):
+        fut = asyncio.run_coroutine_threadsafe(
+            async_func(*args, **kwargs),
+            loop
+        )
+        return fut.result() # synchronous block occurs here
+    return blocking_func
+
 # endregion Async
-# region gui
+# region HTML/GUI
 
 def set_light_dark[*P](element: Element, on_resolve: Callable[[Element, *P], Any], if_light: tuple[*P], if_dark: tuple[*P]) -> None:
     async def async_by_light_dark(element: Element, on_resolve: Callable[[Element, *P], Any], if_light: tuple[*P], if_dark: tuple[*P]):
@@ -171,8 +223,14 @@ def truncate_exception_to_html(exception: Exception):
     )
     return truncated_html
 
+def kebab_case(s: str) -> str:
+    s = s.lower()
+    s = re.sub(r'[^a-z0-9-]', '-', s)
+    s = re.sub(r'-+', '-', s)
+    s = s.strip('-')
+    return s
 
-# endregion gui
+# endregion HTML/GUI
 # region Typing
 
 def add_tuples[T: tuple[Any, ...]](a: T, b: T) -> T:
