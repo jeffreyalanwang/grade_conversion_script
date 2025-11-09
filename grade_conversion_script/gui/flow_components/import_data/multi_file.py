@@ -1,70 +1,30 @@
-from typing import Callable, NamedTuple, Final, cast
-from enum import IntEnum
-from types import NoneType
 from collections.abc import Sequence
+from types import NoneType
+from typing import Callable, NamedTuple, Final, cast
 
-from nicegui.elements.tabs import TabPanel
 from nicegui import html as ui_html, ui, Event, events
-from grade_conversion_script.gui.base_components.collapse_transition import CollapseTransition
-from grade_conversion_script.gui.flow_components import UxFlow as UxFlow
+from nicegui.elements.tabs import TabPanel
 
+from grade_conversion_script.gui.base_components.collapse_transition import \
+    CollapseTransition
+from grade_conversion_script.gui.flow_components.import_data.single_file import \
+    DataImportEntry, ImportDataSingleFile
+from grade_conversion_script.gui.flow_components.import_data.tab_util import \
+    TabOptionButton
+from grade_conversion_script.gui.state_components import UxFlow as UxFlow
 from grade_conversion_script.util.custom_types import NoChange
-from grade_conversion_script.util.funcs import set_light_dark, index_where, tuple_insert, tuple_pop, tuple_replace, unique_readable_html_safe
+from grade_conversion_script.util.funcs import set_light_dark, index_where, \
+    tuple_insert, tuple_pop, tuple_replace, unique_readable_html_safe
 
-from grade_conversion_script.gui.flow_components.import_data.single_file import DataImportEntry, ImportDataSingleFile
-from grade_conversion_script.gui.flow_components.import_data.tab_util import TabOptionButton
-
-_ = ui.add_css('''
+# Default line-height is slightly higher
+# than text, causes misalignment in y-position
+_ = ui.add_css(
+    shared=True,
+    content='''
     .q-btn {
-        /* default line-height is slightly
-           higher than text, causes 
-           misalignment in y-position */
         line-height: unset !important;
     }
 ''')
-_ = ui.aggrid.default_style(add='width: 100%; height: 100%;') # otherwise, element has an absolute height
-
-_ = ui.add_css('''
-    .no-border-ag .ag-root-wrapper {
-        border: none;
-        border-radius: 0;
-    }
-''')
-_ = ui.add_css('''
-.mimic-ag-header {
-    /* mimic ag-grid, slightly darker font */
-    color: color(
-        from var(--ag-header-text-color)
-        srgb
-        calc((r - .5) * 1.25 + .5) 
-        calc((g - .5) * 1.25 + .5) 
-        calc((b - .5) * 1.25 + .5) 
-        / 
-        0.8
-    );
-    font-family: var(--ag-header-font-family);
-    font-size: var(--ag-header-font-size);
-    font-weight: var(--ag-header-font-weight);
-    white-space: nowrap;
-    line-height: 2rem;
-    padding: 0px calc(1.25 * var(--ag-cell-horizontal-padding));
-    background-color: var(--ag-header-background-color);
-    /* allow scroll; no scrollbar */
-    overflow-x: scroll;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    .container::-webkit-scrollbar {
-        width: 0;
-        height: 0;
-    }
-}
-''')
-
-def tab_view_toggle(views_element: ImportDataSingleFile):
-    assert isinstance(views_element.current_page, IntEnum)
-    current_page = views_element.current_page  # would be 0 if in loading state
-    opposite_page = type(current_page)(current_page * -1)  # there are only 2 pages besides loading
-    views_element.current_page = opposite_page
 
 def tab_buttons_visibility_updater(
     toggle_view_button: ui.button,
@@ -107,55 +67,15 @@ class TabRecord(NamedTuple):
     import_data_element: ImportDataSingleFile
     on_change_tab_focused: Callable[[bool], None]
 
-class ImportDataFlowStep(UxFlow.FlowStepElement):
-
-    @property
-    def multi_file(self) -> bool:
-        return self._multi_file
-    # TODO setter
-
-    @property
-    def current_tab_index(self) -> int:
-        assert self._current_tab_index is not None
-        return self._current_tab_index
-
-    @property
-    def import_data(self) -> Sequence[DataImportEntry | None]:
-        return self._import_data
-    @import_data.setter
-    def import_data(self, value: Sequence[DataImportEntry | None]):
-        if (
-            len(value) == len(self._import_data)
-            and all(
-                None == data1 == data2
-                or (
-                    data1 is not None and data2 is not None
-                    and data1.df.equals(data2.df)
-                )
-                for data1, data2 in zip(value, self._import_data)
-            )
-        ):
-            return
-        value = tuple(value)
-        if not self.multi_file:
-            assert len(value) <= 1
-
-        self._import_data = value
-        self.on_import_data_changed.emit(value)
-
-        match (len(value) != 0 and None not in value):
-            case True:
-                state_val = UxFlow.State.CONTINUE_READY
-            case False if (self.state >= UxFlow.State.CONTINUE_READY):
-                state_val = UxFlow.State.START_READY
-            case _:
-                state_val = NoChange
-        if state_val is not NoChange:
-            cast(UxFlow.FlowStepElement, self).state = state_val
+class ImportDataFlowStep(
+    UxFlow.FlowStepDataElement[
+        Sequence[DataImportEntry | None]
+    ]
+):
 
     def __init__(
         self,
-        initial_state: UxFlow.State = UxFlow.State.START_READY,
+        initial_state: UxFlow.State = UxFlow.State.NOT_START_READY,
         multi_file: bool = True,
         *args,
         **kwargs
@@ -254,9 +174,53 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
                     dialog.open()
                 self.delete_dialog_open: Final = open_delete_dialog
 
-        # Initialize with first tab
-        self.tabs: list[TabRecord] = []
-        self.new_tab()
+            # Initialize with first tab
+            self.tabs: list[TabRecord] = []
+            self.new_tab()
+
+
+    @property
+    def multi_file(self) -> bool:
+        return self._multi_file
+
+    @property
+    def current_tab_index(self) -> int:
+        assert self._current_tab_index is not None
+        return self._current_tab_index
+
+    @property
+    def import_data(self) -> Sequence[DataImportEntry | None]:
+        return self._import_data
+    @import_data.setter
+    def import_data(self, value: Sequence[DataImportEntry | None]):
+        if (
+            len(value) == len(self._import_data)
+            and all(
+                None == data1 == data2
+                or (
+                    data1 is not None and data2 is not None
+                    and data1.df.equals(data2.df)
+                )
+                for data1, data2 in zip(value, self._import_data)
+            )
+        ):
+            return
+        value = tuple(value)
+        if not self.multi_file:
+            assert len(value) <= 1
+
+        self._import_data = value
+        self.on_import_data_changed.emit(value)
+
+        match (len(value) != 0 and None not in value):
+            case True:
+                state_val = UxFlow.State.CONTINUE_READY
+            case False if (self.state >= UxFlow.State.CONTINUE_READY):
+                state_val = UxFlow.State.START_READY
+            case _:
+                state_val = NoChange
+        if state_val is not NoChange:
+            cast(UxFlow.FlowStepElement, self).state = state_val
 
     new_tab_label: Final = "Upload"
     tab_name_prefix: Final = "import-tab-"
@@ -294,7 +258,10 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
             with ui.tab_panel(tab_element).classes(add='fit q-pa-none') as panel:
                 tab_panel = panel
 
-                import_data_element = ImportDataSingleFile() # TODO pass multi_file to allow multi uploader
+                import_data_element = ImportDataSingleFile(
+                    internal_flip_button=False,
+                    uploader_vertical_align='end',
+                ) # TODO allow multi upload somewhere
 
         # bind state
         tab_buttons_adjust_visibility = tab_buttons_visibility_updater(
@@ -303,7 +270,7 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
             delete_tab_button=delete_tab_button,
             delete_button_collapser=delete_button_collapser,
         )
-        self._listen_single_tab_state(
+        self._listen_single_data_state(
             element=import_data_element,
             index=len(self.tabs),
         )
@@ -325,7 +292,7 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
                 )
         )
         _ = toggle_view_button.on_click(
-            lambda: tab_view_toggle(import_data_element)
+            lambda: import_data_element.tab_view_toggle()
         )
         _ = delete_tab_button.on_click(
             lambda: self.delete_dialog_open()
@@ -361,7 +328,7 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
         switch_to_index = index + (-1 if index > 0 else 1)
         switch_to_tab = self.tabs[switch_to_index]
 
-        self._unregister_single_tab_state(tab_record.import_data_element, index)
+        self._unregister_single_data_state(tab_record.import_data_element, index)
         for element in reversed(tab_record): # delete children first
             if isinstance(element, ui.element):
                 element.delete()
@@ -393,7 +360,9 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
         old_tab_index, old_tab_record = (
             self._current_tab_index,
             self.tabs[self._current_tab_index]
-                if self._current_tab_index is not None else None
+                if self._current_tab_index is not None # first-time open tab
+                    and self._current_tab_index != len(self.tabs) # delete last tab in the list
+                else None
         )
         new_tab_index, new_tab_record = next(
             (i, tab_record) for i, tab_record
@@ -409,7 +378,7 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
             old_tab_record.on_change_tab_focused(False)
         new_tab_record.on_change_tab_focused(True)
 
-    def _listen_single_tab_state(self, element: ImportDataSingleFile, index: int):
+    def _listen_single_data_state(self, element: ImportDataSingleFile, index: int):
         ''' Element must be present in `self.tabs` at `index`. '''
 
         # expand parent import_data collection
@@ -435,7 +404,7 @@ class ImportDataFlowStep(UxFlow.FlowStepElement):
                 tab.label = self.new_tab_label
         element.on_import_data_changed.subscribe(set_parent_data)
 
-    def _unregister_single_tab_state(self, element: ImportDataSingleFile, index: int):
+    def _unregister_single_data_state(self, element: ImportDataSingleFile, index: int):
         ''' Element must be present in `self.tabs` at `index`. '''
 
         # shrink parent import_data collection
@@ -452,8 +421,8 @@ if __name__ in {"__main__", "__mp_main__"}:
     logging.basicConfig(level=logging.INFO,stream=sys.stdout)
 
     with ui.row():
-        step_element = ImportDataFlowStep(multi_file=True)
+        step_element = ImportDataFlowStep(multi_file=True, initial_state=UxFlow.State.START_READY)
 
     step_element.on_state_changed.subscribe(lambda state: ui.notify(f'New state: {state.name}'))
 
-    ui.run(native=False)
+    ui.run()
