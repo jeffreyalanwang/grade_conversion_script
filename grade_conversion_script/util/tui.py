@@ -1,19 +1,19 @@
+import ctypes
+import re
+import sys
 from itertools import chain
 from math import ceil, floor
-import re
-
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
-
 from shutil import get_terminal_size
-import colorama
+from typing import *  # pyright: ignore[reportWildcardImportFromLibrary]
 
-import sys
-import ctypes
+import colorama
 
 if (sys.platform == "win32"):
     import ctypes.wintypes
 else:
     import termios
+
+# TODO move to own package
 
 def center_text(text: str, line_width: int, padding_char: str) -> str:
     ''' If it must, centered text will be one char closer to the left side. '''

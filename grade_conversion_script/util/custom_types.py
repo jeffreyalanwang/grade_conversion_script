@@ -1,15 +1,16 @@
 from enum import Enum
-import pandas as pd
+from typing import *  # pyright: ignore[reportWildcardImportFromLibrary]
 
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
+import pandas as pd
 import pandera.pandas as pa
 from pandera.errors import SchemaError
-
 
 IndexFlag = Enum('IndexFlag', 'Index')
 # to minimize confusion, Index is referenced as IndexFlag.Index
 NoChangeFlag = Enum('NoChangeFlag', 'NoChange')
 NoChange = NoChangeFlag.NoChange
+UnsetFlag = Enum('UnsetFlag', 'Unset')
+Unset = UnsetFlag.Unset
 
 type IterableOfStr = list[str] | tuple[str] | set[str] | Generator[str]
 
@@ -18,7 +19,7 @@ class Matcher[T1, T2](Protocol):
         ...
 
 class RubricMatcher(Matcher[str, str], Protocol):
-    def __call__(self, given_labels, dest_labels) -> dict[str, str]:
+    def __call__(self, given_labels: Collection[str], dest_labels: Collection[str]) -> dict[str, str]:
         ...
 
 class SisId(str):

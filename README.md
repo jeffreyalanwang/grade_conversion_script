@@ -8,7 +8,9 @@ to convert grades from one .csv format to another.
 1. [Install `pipx`.](https://pipx.pypa.io/stable/installation/)
     Below is a copy of the linked instructions.
     <i>
-    <br/> Skip this step if you can already run the `pipx` command without error
+    <br/> Skip this step if you can already run the [`pipx`](## "You can 
+   also use `uv` (step 2 with `uvx --from` instead of `pipx run --spec`).") 
+   command without error
     <br/> (likely the case if running on Linux).
     </i>
 
