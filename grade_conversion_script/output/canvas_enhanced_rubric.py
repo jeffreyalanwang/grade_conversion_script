@@ -1,20 +1,53 @@
 import enum
-from itertools import chain
-import pandas as pd
-from pathlib import Path
-
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
+from itertools import chain
+from pathlib import Path
+from typing import *  # pyright: ignore[reportWildcardImportFromLibrary]
+
+import pandas as pd
 import pandera.pandas as pa
-from numpy.ma.extras import row_stack
 from pandera.typing import DataFrame
 
+from grade_conversion_script.util import AliasRecord
+from grade_conversion_script.util.custom_types import Matcher, RubricMatcher, \
+    StudentPtsById
+from grade_conversion_script.util.funcs import associate_unrecognized_entities, \
+    best_effort_is_name, iter_by_element, reindex_to
+from grade_conversion_script.util.tui import interactive_rubric_criteria_match, \
+    interactive_alias_match
 from .base import OutputFormat
 
-from grade_conversion_script.util import AliasRecord
-from grade_conversion_script.util.custom_types import Matcher, RubricMatcher, SisId, StudentPtsById
-from grade_conversion_script.util.funcs import associate_unrecognized_entities, best_effort_is_name, contains_row_for, iter_by_element, is_pd_value_present, reindex_to
-from grade_conversion_script.util.tui import interactive_rubric_criteria_match, interactive_alias_match
+
+class CriterionField(enum.Enum):
+    PTS_LABEL = " - Rating"
+    PTS = " - Points"
+    COMMENTS = " - Comments"
+
+    def col_name_for(
+        self,
+        criterion: str
+    ) -> str:
+        return criterion + self.value
+
+    @classmethod
+    def remove_field_suffix(
+        cls,
+        col_name: str
+    ) -> str:
+        field = cls.get_field_type(col_name)
+        if not field:
+            raise ValueError(f"{col_name} does not end in known field suffix")
+        return col_name.removesuffix(field.value)
+
+    @classmethod
+    def get_field_type(
+        cls,
+        col_name: str
+    ) -> Self | None:
+        for field in cls:
+            if col_name.endswith(field.value):
+                return field
+        return None
 
 class CanvasEnhancedRubricOutputFormat(OutputFormat):
     '''
@@ -71,28 +104,6 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
     0     Name One                     3                   NaN
     '''
 
-    class CriterionField(enum.Enum):
-        PTS_LABEL = " - Rating"
-        PTS = " - Points"
-        COMMENTS = " - Comments"
-
-        def col_name_for(self, criterion: str) -> str:
-            return criterion + self.value
-
-        @classmethod
-        def remove_field_suffix(cls, col_name: str) -> str:
-            field = cls.get_field_type(col_name)
-            if not field:
-                raise ValueError(f"{col_name} does not end in known field suffix")
-            return col_name.removesuffix(field.value)
-
-        @classmethod
-        def get_field_type(cls, col_name: str) -> Self | None:
-            for field in cls:
-                if col_name.endswith(field.value):
-                    return field
-            return None
-
     def __init__(
             self,
             rubric_csv: pd.DataFrame,
@@ -130,10 +141,10 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
                 existing_val = existing.loc[row, col]
                 alias_id: int = index_to_alias_id[row]
                 student_name = self.student_aliases.best_effort_alias(best_effort_is_name, id=alias_id)
-                criterion = self.CriterionField.remove_field_suffix(col)
+                criterion = CriterionField.remove_field_suffix(col)
 
-                rating= full_existing.loc[row, criterion + self.CriterionField.PTS_LABEL.value]
-                comment = full_existing.loc[row, criterion + self.CriterionField.COMMENTS.value]
+                rating= full_existing.loc[row, criterion + CriterionField.PTS_LABEL.value]
+                comment = full_existing.loc[row, criterion + CriterionField.COMMENTS.value]
 
                 yield (existing_val, new_val, student_name, criterion, rating, comment)
 
@@ -196,11 +207,11 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
 
         # Perform matching: input column label -> rubric criterion
         user_criteria = grades.columns.to_list()
-        canvas_criteria = (
-            self.CriterionField.remove_field_suffix(col_name)
+        canvas_criteria = [
+            CriterionField.remove_field_suffix(col_name)
             for col_name in new_rubric.columns
-            if col_name.endswith(self.CriterionField.PTS.value) # pull one column label for each criterion
-        )
+            if col_name.endswith(CriterionField.PTS.value) # pull one column label for each criterion
+        ]
         given_to_dest_criteria = self.rubric_criteria_match(
             given_labels=user_criteria,
             dest_labels=canvas_criteria
@@ -214,56 +225,52 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
             expect_new_entities=True,
             collect_new_aliases=True
         )
-        incoming_grades_aligned_rows = cast(
-            pd.DataFrame,
-            reindex_to(
-                to_realign=grades,
-                target_ids=id_by_rubric_row
-            )
+        incoming_grades_aligned_rows = reindex_to(
+            to_realign=grades,
+            target_ids=id_by_rubric_row
         )
 
         # Resolve + Set values (handle replace_existing, warn_existing)
 
         # determine which elements are conflicting
-        determines_existing = (self.CriterionField.PTS, self.CriterionField.COMMENTS)
+        determines_existing = new_rubric.loc[
+            :,
+            new_rubric.columns.map(
+                lambda col_name:
+                    CriterionField.get_field_type(col_name)
+                    in (CriterionField.PTS, CriterionField.COMMENTS),)
+        ]
         # `has_existing` and `has_incoming` have
         # index like `new_rubric` but
         # columns like `incoming_grades_aligned_rows`.
         has_existing = (
-            new_rubric.loc[
-                : , (
-                    new_rubric.columns.to_series().map(
-                        lambda col_name:
-                            self.CriterionField.get_field_type(col_name)
-                            in determines_existing
-                    )
-                )
-            ].groupby( # pyright: ignore[reportUnknownMemberType, reportCallIssue]
-                lambda col: self.CriterionField.remove_field_suffix(col),
+            determines_existing.T
+            .groupby(
+                by=CriterionField.remove_field_suffix,
                 as_index=True,
-                sort=False,
-                axis='columns'
-            ).apply(
-                lambda group: (group.notna() & ~group.eq('')).any(axis="columns"),
+                sort=False,)
+            .apply(
+                lambda group:
+                    (group.notna() & ~group.eq(''))
+                    .any(axis=0),
             )
-        )
+            .T)
         has_incoming: pd.DataFrame = (
             incoming_grades_aligned_rows
             .notna()
             .reindex(
                 fill_value=bool(False),
                 index=new_rubric.index
-            )
-        )
+            ))
         conflicting = has_existing & has_incoming
-        conflicting_aligned_2D = conflicting.rename(columns=self.CriterionField.PTS.col_name_for)
+        conflicting_aligned_2D = conflicting.rename(columns=CriterionField.PTS.col_name_for)
         non_conflicting = (~has_existing) & has_incoming
-        non_conflicting_aligned_2D = non_conflicting.rename(columns=self.CriterionField.PTS.col_name_for)
+        non_conflicting_aligned_2D = non_conflicting.rename(columns=CriterionField.PTS.col_name_for)
 
         # rename incoming grades to end with ' - Points' for convenience
         incoming_grades_aligned_2D = incoming_grades_aligned_rows.rename(
             columns = lambda col_name: (
-                self.CriterionField.PTS.col_name_for(col_name)
+                CriterionField.PTS.col_name_for(col_name)
             )
         )
 
@@ -276,10 +283,10 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
             index_to_alias_id = id_by_rubric_row,
             full_existing = new_rubric
         )
-        new_rubric.mask(
-            conflicting_aligned_2D.reindex_like(new_rubric).fillna(False),
-            other=conflict_vals,
-            inplace=True
+        new_rubric = new_rubric.mask(
+            conflicting_aligned_2D.reindex_like(new_rubric)
+                .astype('boolean').fillna(False).astype(bool),
+            other=conflict_vals
         )
         if warning_msg:
             print(warning_msg)
@@ -287,7 +294,8 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
         # set non-conflicting
         non_conflict_vals = incoming_grades_aligned_2D[non_conflicting_aligned_2D]
         new_rubric = new_rubric.mask(
-            non_conflicting_aligned_2D.reindex_like(new_rubric).fillna(False),
+            non_conflicting_aligned_2D.reindex_like(new_rubric)
+                .astype('boolean').fillna(False).astype(bool),
             other=non_conflict_vals
         )
 
