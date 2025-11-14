@@ -17,14 +17,14 @@ from grade_conversion_script.gui.state_components import UxFlow as UxFlow
 
 # TODO make sure no output constructor modifies AliasRecord
 
-handlers = (
+HANDLERS = (
     canvas_enhanced_rubric,
     canvas_gradebook,
     auto_canvas_rubric,
 )
 
 def get_child_info(name_id: str) -> OutputPanelInfo[Any]:
-    for handler_info in handlers:
+    for handler_info in HANDLERS:
         if handler_info.name_id == name_id:
             return handler_info
     raise ValueError(f'No handler found for name_id: {name_id}')
@@ -51,7 +51,7 @@ class OutputFormatSelectStep(
                 self.format_selector: Final = ui.radio({
                     # name (unique ID) : text
                     handler_info.name_id: handler_info.title
-                    for handler_info in handlers
+                    for handler_info in HANDLERS
                 }).props('inline')
 
                 with ui.tab_panels(keep_alive=False) as option_panels:
@@ -62,7 +62,7 @@ class OutputFormatSelectStep(
                     )
 
                     self.handler_pages: Final = dict[str, OutputConstructorElement[Any]]()
-                    for handler_info in handlers:
+                    for handler_info in HANDLERS:
                         with ui.tab_panel(handler_info.name_id):
                             page = handler_info.options_page()
                             self.handler_pages[handler_info.name_id] = page

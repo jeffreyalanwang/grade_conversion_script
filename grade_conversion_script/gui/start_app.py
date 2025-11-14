@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 
+import sys
+
 from nicegui import ui
 
 from grade_conversion_script.gui.flow_components.app_flow import \
     GradeConversionAppFlow
 
-DEBUG = False
+DEBUG = any('debug' in x for x in sys.argv)
 
 if DEBUG:
-    print('Running in debug mode')
+    print('Running in debug mode (you may see this message multiple times)')
 
 def main():
 

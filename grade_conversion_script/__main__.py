@@ -54,14 +54,14 @@ def cli_main():
     print(f"Result saved to {output_file_path}.")
 
 def gui_main():
-    from grade_conversion_script.gui import start_app
+    from grade_conversion_script import gui
     logging.basicConfig(
         level=logging.ERROR,
         format="%(asctime)s - %(levelname)s - %(message)s",
         filename=os.path.expanduser("~/Desktop"),
         filemode="a"  # Append to the file (default)
     )
-    start_app.main()
+    gui.main()
 
 if __name__ in ('__main__', '__mp_main__'):
     if 'gui' in sys.argv:

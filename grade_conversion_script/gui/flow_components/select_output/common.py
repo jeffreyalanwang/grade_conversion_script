@@ -5,8 +5,9 @@ from typing import Callable, Protocol
 
 from grade_conversion_script.gui.state_components.constructor_element import \
     PartialObject, PartialObjectConstructingElement, ConstructorDependencies
+from grade_conversion_script.gui.util import StaticPanelInfo
 from grade_conversion_script.output import OutputFormat
-from grade_conversion_script.util import StaticPanelInfo, AliasRecord
+from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.custom_types import Matcher, RubricMatcher
 
 

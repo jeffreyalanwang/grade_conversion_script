@@ -5,8 +5,9 @@ from typing import Protocol
 from grade_conversion_script.gui.state_components.constructor_element import \
     PartialObjectConstructingElement, \
     ConstructorDependencies, PartialObject
+from grade_conversion_script.gui.util import StaticPanelInfo
 from grade_conversion_script.input import InputHandler
-from grade_conversion_script.util import StaticPanelInfo, AliasRecord
+from grade_conversion_script.util import AliasRecord
 
 
 @dataclass(frozen=True)
