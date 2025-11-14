@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from enum import IntEnum
 from typing import Final, overload
 
+from nicegui import ui
 from nicegui.element import Element
 from nicegui.elements.spinner import SpinnerTypes
 

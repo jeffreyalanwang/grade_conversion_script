@@ -58,7 +58,7 @@ def gui_main():
     )
     gui.main()
 
-if __name__ in ('__main__', '__mp_main__'):
+if __name__ in {"__main__", "__mp_main__"}:
     import sys
     if 'gui' in sys.argv:
         gui_main()

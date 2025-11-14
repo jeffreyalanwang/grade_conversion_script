@@ -32,11 +32,14 @@ doctest_optionflags = ["NORMALIZE_WHITESPACE", "IGNORE_EXCEPTION_DETAIL"]
 include = [
     "grade_conversion_script",
     # top-level packages
-    "grade_conversion_script.gui",
     "grade_conversion_script.input", "grade_conversion_script.output",
-    "grade_conversion_script.util",
+    "grade_conversion_script.util", "grade_conversion_script.gui",
     # top-level modules
-    "grade_conversion_script.bootstrap_utils", "grade_conversion_script.cmd_opts"
+    "grade_conversion_script.bootstrap_utils", "grade_conversion_script.cmd_opts",
+    # nested packages
+    "grade_conversion_script.gui.base_components*",
+    "grade_conversion_script.gui.flow_components*",
+    "grade_conversion_script.gui.state_components*",
 ]
 exclude = [".*", "dist*", "*test*", "*build.py"]
 
