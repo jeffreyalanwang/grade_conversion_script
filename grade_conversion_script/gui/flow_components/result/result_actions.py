@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Final, NamedTuple
 
-from nicegui import ui
+from nicegui import app, ui
 
 from grade_conversion_script.gui.state_components import UxFlow
 

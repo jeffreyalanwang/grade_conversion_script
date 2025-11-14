@@ -92,13 +92,9 @@ class FlowStepHolder:
 
     def add_child_sibling(self, new_sibling: UxFlow.FlowStepElement, for_child: UxFlow.FlowStepElement) -> None:
         assert for_child in self.steps
-        print(f'2.1 {new_sibling.state}')
         self._birthed_sibling_count[for_child] += 1
-        print(f'2.2 {new_sibling.state}')
         index = self.steps.index(for_child) + self._birthed_sibling_count[for_child]
-        print(f'2.3 {new_sibling.state}')
         self.add_flow_step(new_sibling, index)
-        print(f'2.4 {new_sibling.state}')
 
     def get_step[T: UxFlow.FlowStepElement](self, cls: type[T]) -> T:
         for item in self.steps:
@@ -138,7 +134,6 @@ class FlowStepHolder:
 
         # Manually trigger state changes
 
-        print(f'2.3.3.1 {element.state}')
         if not prev_element:
             element.set_state_immediately(element.state.with_start_allowed(True))
         else:

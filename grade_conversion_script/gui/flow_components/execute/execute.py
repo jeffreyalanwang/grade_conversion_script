@@ -54,14 +54,9 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
     def _prompt_additional_step(self, step: UxFlow.FlowStepElement) -> None:
         self._birthed_siblings.append(step)
-        print(f'1 {step.state}')
         with self:
-            print(f'2 {step.state}')
             self._add_step_callback.__call__(step)
-            print(f'3 {step.state}')
-        print(f'4 {step.state}')
         self.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED)  # ensure prompted step is allowed, and ensure this step does not reset
-        print(f'5 {step.state}')
 
     def cleanup_children(self): # TODO take a callback from parent instead, to decrease FlowStepHolder birthed sibling count
         while self._birthed_siblings:
@@ -75,6 +70,7 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
     ):
         assert temp_output_file.parent.exists()
 
+        _ = self.button.props(add='loading')
         self.button.disable()
 
         student_aliases = AliasRecord()
@@ -135,6 +131,7 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
             self.cleanup_children()
             if not self.state.requires_continue:
                 self.button.enable()
+            _ = self.button.props(remove='loading')
 
     async def prompt_student_alias_match(self,
         user: Collection[str],

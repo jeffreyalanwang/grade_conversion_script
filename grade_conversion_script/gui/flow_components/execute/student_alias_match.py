@@ -53,8 +53,8 @@ class StudentAliasMatchElement(  # pyright: ignore[reportUnsafeMultipleInheritan
         self,
         content: DualListMatch,
     ):
-        self.data = self._pairs_to_dict(content.value, self.flip)
         self.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED)
+        self.data = self._pairs_to_dict(content.value, self.flip)
 
     def _pairs_to_dict[T1, T2](
         self,

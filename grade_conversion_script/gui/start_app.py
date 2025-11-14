@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
+
 import sys
-sys.argv[0] = __file__
-print('new argv: ' + str(sys.argv))
-from nicegui import ui
+from nicegui import ui, app
 from grade_conversion_script.gui.flow_components.app_flow \
     import GradeConversionAppFlow
 
@@ -19,12 +18,17 @@ def fix_path():
     begin execution at.
     '''
     sys.argv[0] = __file__
-    print('new argv: ' + str(sys.argv))
+
+def ensure_downloads_allowed():
+    app.native.settings['ALLOW_DOWNLOADS'] = True
 
 def main():
 
     if any('grade-convert-app' in x for x in sys.argv):
         fix_path()
+
+    if not DEBUG:
+        ensure_downloads_allowed()
 
     with GradeConversionAppFlow():
         pass
@@ -41,4 +45,5 @@ def main():
     )
 
 if __name__ in {"__main__", "__mp_main__"}:
+    DEBUG = True   # pyright: ignore[reportConstantRedefinition]
     main()

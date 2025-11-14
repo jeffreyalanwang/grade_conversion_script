@@ -66,5 +66,5 @@ class RubricCriteriaMatchElement(  # pyright: ignore[reportUnsafeMultipleInherit
         self,
         content: DualListMatch,
     ):
-        self.data = dict(content.value)
         self.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED)
+        self.data = dict(content.value)

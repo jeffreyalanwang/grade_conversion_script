@@ -72,7 +72,7 @@ class DualListMatch(Element):
         select_element = select_discardables if discardable else ui.select
 
         with self:
-            with ui.grid(rows='min-content auto', columns='1fr auto 1fr auto .75fr') as g:
+            with ui.grid(rows='min-content auto', columns='1fr auto 1fr auto .75fr'):
                 # Row 1
                 self.left_select_element: Final = (
                     select_element(

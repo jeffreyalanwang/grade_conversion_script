@@ -92,6 +92,8 @@ def generate_result_actions_depends(
         filename=output_data.make_filename(),
         media_type=output_data.media_type,)
 
+    return value
+
 class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: ignore[reportUnsafeMultipleInheritance]
     '''
     Responsible for combining functionalities of
@@ -156,6 +158,7 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
                         new_inputs = generate_result_actions_depends(
                             output_select, execute,)
                         result_actions.inputs = new_inputs
+                    output_select.on_data_changed.subscribe(update_result_inputs)
                     execute.on_data_changed.subscribe(update_result_inputs)
                 case _:
                     raise ValueError(f"Unrecognized flow step takes input data: {step}")
@@ -179,13 +182,9 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
         Also modifies FlowStepHolder's methods which rely on self.add_flow_step
         (e.g. `add_child_sibling`).
         '''
-        print(f'2.3.1 {element.state}')
         decorated_element = decorate_step(element)
-        print(f'2.3.2 {element.state}')
         super().add_child(decorated_element, position)
-        print(f'2.3.3 {element.state}')
         super().add_flow_step(element, position)
-        print(f'2.3.4 {element.state}')
 
 if __name__ in {"__main__", "__mp_main__"}:
     from nicegui import ui
