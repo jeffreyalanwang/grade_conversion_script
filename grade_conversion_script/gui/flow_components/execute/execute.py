@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Callable, Final, NamedTuple, cast
@@ -7,10 +7,12 @@ from typing import Any, Callable, Final, NamedTuple, cast
 import pandas as pd
 from nicegui import run, ui
 
-from grade_conversion_script.gui.flow_components.execute.rubric_match \
-    import RubricCriteriaMatchElement
 from grade_conversion_script.gui.flow_components.execute.student_alias_match \
     import StudentAliasMatchElement
+from grade_conversion_script.gui.flow_components.execute.rubric_match \
+    import RubricCriteriaMatchElement
+from grade_conversion_script.gui.flow_components.execute.warn_existings \
+    import WarnExistings
 from grade_conversion_script.gui.flow_components.select_input.common \
     import InputDependencies, PartialInputConstructor
 from grade_conversion_script.gui.flow_components.select_output.common \
@@ -76,6 +78,7 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
         student_aliases = AliasRecord()
         student_name_match = wrap_async(self.prompt_student_alias_match)
         rubric_criteria_match = wrap_async(self.prompt_rubric_criteria_match)
+        warning_printer = wrap_async(self.show_warnings)
 
         # Prepare objects
         input = cast(InputHandler,
@@ -90,6 +93,7 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
                     student_aliases=student_aliases,
                     name_matcher=student_name_match,
                     rubric_criteria_matcher=rubric_criteria_match,
+                    warning_handler=warning_printer,
                 ),
             ), )
 
@@ -158,3 +162,11 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
             data = await wait_for_event(element.on_data_changed.subscribe)
             if data[0] is not None and element.state >= UxFlow.State.CONTINUE_REQUIRED:
                 return data[0]
+
+    async def show_warnings(self, messages: Sequence[str]):
+        if not messages:
+            return
+        with self:  # temporarily place our new element here
+            element = WarnExistings(messages)
+            # do not exit context (disabling all children) until new step is extracted to another place
+            self._prompt_additional_step(element) # attach element in proper place

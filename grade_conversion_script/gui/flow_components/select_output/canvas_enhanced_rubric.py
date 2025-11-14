@@ -71,6 +71,7 @@ class CanvasEnhancedRubricFormatOptions(OutputConstructorElement[CanvasEnhancedR
             student_aliases = dependencies.student_aliases,
             unrecognized_name_match = dependencies.name_matcher,
             rubric_criteria_match = dependencies.rubric_criteria_matcher,
+            warn_existing_handler=dependencies.warning_handler,
             replace_existing = cast(bool, self.replace_existing_element.value),
             warn_existing = cast(bool, self.warn_existing_element.value),
         )
@@ -88,7 +89,7 @@ if __name__ in {"__main__", "__mp_main__"}:
     from grade_conversion_script.gui.flow_components.select_output.common \
         import OutputDependencies
     from grade_conversion_script.util.tui \
-        import interactive_alias_match, interactive_rubric_criteria_match
+        import interactive_alias_match, interactive_rubric_criteria_match, default_warning_printer
     import logging, sys
     logging.basicConfig(level=logging.INFO,stream=sys.stdout)
 
@@ -96,7 +97,7 @@ if __name__ in {"__main__", "__mp_main__"}:
         element = CanvasEnhancedRubricFormatOptions()
 
     def report_new_constructor(new_constructor):
-        obj = new_constructor(OutputDependencies(AliasRecord(), interactive_alias_match, interactive_rubric_criteria_match))
+        obj = new_constructor(OutputDependencies(AliasRecord(), interactive_alias_match, interactive_rubric_criteria_match, default_warning_printer))
         ui.notify(f'New constructor generated: {new_constructor}')
         logging.info(f'Generates object: {obj.__dict__ if obj else None}')
     element.on_object_changed.subscribe(report_new_constructor)

@@ -28,7 +28,7 @@ class RubricCriteriaMatchElement(  # pyright: ignore[reportUnsafeMultipleInherit
             header_text='Match rubric criteria (cross-file)',
             initial_state=UxFlow.State.START_READY,
             **kwargs, )
-        _ = self.content.classes('q-pa-md')
+        _ = self.content.classes('q-px-md')
 
         with self.header_bar:
             _ = ui.space()
@@ -39,6 +39,9 @@ class RubricCriteriaMatchElement(  # pyright: ignore[reportUnsafeMultipleInherit
                 )
                 .props('outline icon-right="check"'))
         with self:
+            _ = (
+                self.content # see parent class
+                .classes('overflow-y-auto overflow-x-hidden q-py-sm'))
             content = DualListMatch(
                 left = sorted(given_labels),
                 right = sorted(dest_labels),

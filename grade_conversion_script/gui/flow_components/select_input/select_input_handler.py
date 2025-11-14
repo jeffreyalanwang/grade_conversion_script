@@ -28,14 +28,17 @@ class InputHandlerSelectStep(
     ):
         super().__init__(initial_state, *args, **kwargs)
 
-        with self.classes('w-full'):
+        with (((self.classes('w-full')))):
             with ui.column(align_items='stretch').classes('gap-0'):
 
-                self.input_handler_selector: Final = ui.radio({
-                    # name (unique ID) : text
-                    handler_info.name_id: handler_info.title
-                    for handler_info in HANDLERS
-                }).props('inline')
+                self.input_handler_selector: Final = (
+                    ui.radio({
+                        # name (unique ID) : text
+                        handler_info.name_id: handler_info.title
+                        for handler_info in HANDLERS
+                    })
+                    .props('inline dense')
+                    .classes('q-px-md q-py-sm'))
 
                 with ui.tab_panels(keep_alive=False) as option_panels:
                     _ = (
@@ -46,7 +49,8 @@ class InputHandlerSelectStep(
 
                     self.handler_pages: Final = dict[str, InputConstructorElement[Any]]()
                     for input_handler_info in HANDLERS:
-                        with ui.tab_panel(input_handler_info.name_id):
+                        with ui.tab_panel(input_handler_info.name_id) as p:
+                            _ = p.classes('py-0')
                             page = input_handler_info.options_page()
                             self.handler_pages[input_handler_info.name_id] = page
 

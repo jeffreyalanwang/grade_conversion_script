@@ -48,11 +48,14 @@ class OutputFormatSelectStep(
         with self.classes('w-full'):
             with ui.column(align_items='stretch').classes('gap-0 absolute-full'):
 
-                self.format_selector: Final = ui.radio({
-                    # name (unique ID) : text
-                    handler_info.name_id: handler_info.title
-                    for handler_info in HANDLERS
-                }).props('inline')
+                self.format_selector: Final = (
+                    ui.radio({
+                        # name (unique ID) : text
+                        handler_info.name_id: handler_info.title
+                        for handler_info in HANDLERS
+                    })
+                    .props('inline dense')
+                    .classes('q-px-md q-py-sm'))
 
                 with ui.tab_panels(keep_alive=False) as option_panels:
                     option_panels = (
@@ -63,7 +66,8 @@ class OutputFormatSelectStep(
 
                     self.handler_pages: Final = dict[str, OutputConstructorElement[Any]]()
                     for handler_info in HANDLERS:
-                        with ui.tab_panel(handler_info.name_id):
+                        with ui.tab_panel(handler_info.name_id) as p:
+                            _ = p.classes('py-0')
                             page = handler_info.options_page()
                             self.handler_pages[handler_info.name_id] = page
 

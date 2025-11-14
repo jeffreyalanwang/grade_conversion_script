@@ -13,7 +13,7 @@ from grade_conversion_script.util.custom_types import Matcher, RubricMatcher, \
     StudentPtsById
 from grade_conversion_script.util.funcs import associate_unrecognized_entities, \
     best_effort_is_name, iter_by_element, reindex_to
-from grade_conversion_script.util.tui import interactive_rubric_criteria_match, \
+from grade_conversion_script.util.tui import default_warning_printer, interactive_rubric_criteria_match, \
     interactive_alias_match
 from .base import OutputFormat
 
@@ -112,8 +112,8 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
             rubric_criteria_match: RubricMatcher = interactive_rubric_criteria_match,
             *,
             replace_existing: bool,
-            warn_existing: bool
-        ):
+            warn_existing: bool,
+            warn_existing_handler: Callable[[Sequence[str]], None] = default_warning_printer,):
         super().__init__(student_aliases)
 
         self.rubric_template = rubric_csv
@@ -123,13 +123,13 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
 
         self.unrecognized_name_match = unrecognized_name_match
         self.rubric_criteria_match = rubric_criteria_match
+        self.warning_handler = warn_existing_handler
 
-    def merge_conflict_values(self, existing: pd.DataFrame, incoming: pd.DataFrame, index_to_alias_id: pd.Series, full_existing: pd.DataFrame) -> tuple[pd.DataFrame, str | None]:
+    def merge_conflict_values(self, existing: pd.DataFrame, incoming: pd.DataFrame, index_to_alias_id: pd.Series, full_existing: pd.DataFrame) -> tuple[pd.DataFrame, Sequence[str] | None]:
         '''
         Columns of `existing` and `incoming` have ' - Points' suffix'.
         '''
         # constants
-        subline_start = "\n    "
         tab = "\t"
         def conflicts_detail():
             for row, col, new_val in iter_by_element(incoming):
@@ -157,7 +157,7 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
 
         if self.replace_existing:
             values = incoming
-            message = subline_start.join((
+            message = [
                 f"Replacing existing grade values (keeping values for Rating and Comment):",
                 *(
                     tab.join((
@@ -171,10 +171,10 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
                     for existing_val, new_val, student_name, criterion, rating, comment
                     in conflicts_detail()
                 )
-            ))
+            ]
         else:
             values = existing
-            message = subline_start.join((
+            message = [
                 f"Keeping existing grade values:",
                 *(
                     tab.join((
@@ -186,7 +186,7 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
                     for existing_val, _, student_name, criterion, _, comment
                     in conflicts_detail()
                 )
-            ))
+            ]
 
         return (values, message if self.warn_existing else None)
 
@@ -289,7 +289,7 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
             other=conflict_vals
         )
         if warning_msg:
-            print(warning_msg)
+            self.warning_handler(warning_msg)
 
         # set non-conflicting
         non_conflict_vals = incoming_grades_aligned_2D[non_conflicting_aligned_2D]

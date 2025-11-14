@@ -18,15 +18,15 @@ def decorate(element: Element, header_text: str | None) -> Element:
         element.move(decorated_element.content)
         return decorated_element
 
-class ClientSideHeaderElement(ui.column):
+class ClientSideHeaderElement(Element):
     '''
     An Element which may be given a title bar,
     but needs to create and manage the bar
     itself.
     '''
     def __init__(self, header_text: str | None = None, *args, **kwargs) -> None:
-        super().__init__(wrap=False, align_items='stretch', *args, **kwargs)
-        _ = self.classes('gap-0 items-stretch')
+        super().__init__(*args, **kwargs)
+        _ = self.classes('column flex-nowrap gap-0 items-stretch')
 
         super().__enter__()
 
@@ -40,7 +40,7 @@ class ClientSideHeaderElement(ui.column):
 
         _ = ui.separator()
 
-        self.content: Final = ui.element().classes('grow relative')
+        self.content: Final = ui.element().classes('grow fit relative overflow-auto')
 
         super().__exit__()
 

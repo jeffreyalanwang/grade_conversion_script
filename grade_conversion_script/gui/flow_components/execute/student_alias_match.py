@@ -30,7 +30,7 @@ class StudentAliasMatchElement(  # pyright: ignore[reportUnsafeMultipleInheritan
             **kwargs,)
         self.flip: Final[bool] = len(user) > len(dest) # show shorter list on left
 
-        _ = self.content.classes('q-pa-md')
+        _ = self.content.classes('q-px-md')
 
         with self.header_bar:
             _ = ui.space()
@@ -41,6 +41,9 @@ class StudentAliasMatchElement(  # pyright: ignore[reportUnsafeMultipleInheritan
                 )
                 .props('outline icon-right="check"'))
         with self:
+            _ = (
+                self.content  # see parent class
+                .classes('overflow-y-auto overflow-x-hidden q-py-sm'))
             content = DualListMatch(
                 left = sorted(user if not self.flip else dest),
                 right = sorted(dest if not self.flip else user),

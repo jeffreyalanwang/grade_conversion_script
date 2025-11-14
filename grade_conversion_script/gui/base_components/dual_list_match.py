@@ -26,7 +26,7 @@ def select_discardables(*args, **kwargs) -> ui.select:
     using .on('discardItem', lambda e: callback(e.args)),
     (args={'value': Any, 'label', str}).
     '''
-    element = ui.select(*args, **kwargs)
+    element = ui.select(*args, **kwargs).props('dense')
     with element:
         _ = element.add_slot('option', '''
             <q-item v-bind="props.itemProps">
@@ -72,7 +72,13 @@ class DualListMatch(Element):
         select_element = select_discardables if discardable else ui.select
 
         with self:
-            with ui.grid(rows='min-content auto', columns='1fr auto 1fr auto .75fr'):
+            with ui.grid(
+                rows='min-content auto',
+                columns='minmax(4rem, 4fr)'
+                        ' auto minmax(4rem, 4fr)'
+                        ' auto minmax(10rem, 3fr)'
+            ) as g:
+                _ = g.classes('gap-y-0')
                 # Row 1
                 self.left_select_element: Final = (
                     select_element(
@@ -102,7 +108,7 @@ class DualListMatch(Element):
                     .props('title="Add match from selected"'))
 
                 # Row 2
-                with ui.list().classes(add='col-1') as l:
+                with ui.list().props('dense').classes(add='col-1') as l:
                     self.left_discards_element: Final = l
                     _ = (
                         ui.item_label('Discarded')
@@ -111,7 +117,7 @@ class DualListMatch(Element):
                     self.left_discards_placeholder: Final = (
                         ui.item('No items')
                         .classes('italic opacity-50'))
-                with ui.list().classes(add='col-3') as l:
+                with ui.list().props('dense').classes(add='col-3') as l:
                     self.right_discards_element: Final = l
                     _ = (
                         ui.item_label('Discarded')
@@ -120,7 +126,7 @@ class DualListMatch(Element):
                     self.right_discards_placeholder: Final = (
                         ui.item('No items')
                         .classes('italic opacity-50'))
-                with ui.list().classes(add='col-5') as l:
+                with ui.list().props('dense').classes(add='col-5') as l:
                     self.matches_element: Final = l
                     _ = (
                         ui.item_label('Matches')

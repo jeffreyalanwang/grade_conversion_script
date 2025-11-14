@@ -12,7 +12,7 @@ from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.custom_types import Matcher, StudentPtsById
 from grade_conversion_script.util.funcs import associate_unrecognized_entities, \
     best_effort_is_name, contains_row_for, reindex_to
-from grade_conversion_script.util.tui import interactive_alias_match
+from grade_conversion_script.util.tui import default_warning_printer, interactive_alias_match
 from .base import OutputFormat
 
 
@@ -83,7 +83,8 @@ class CanvasGradebookOutputFormat(OutputFormat):
                  *,
                  sum: bool = False,
                  if_existing: ReplaceBehavior = ReplaceBehavior.ERROR,
-                 warn_existing: bool = True):
+                 warn_existing: bool = True,
+                 warn_existing_handler: Callable[[Sequence[str]], None] = default_warning_printer,):
         '''
         Args:
             gradebook_csv:
@@ -120,8 +121,9 @@ class CanvasGradebookOutputFormat(OutputFormat):
         self.warn_existing = warn_existing
 
         self.unrecognized_name_match = unrecognized_name_match
+        self.warning_handler = warn_existing_handler
 
-    def merge_conflict_values(self, existing: pd.Series, incoming: pd.Series, index_to_alias_id: pd.Series) -> tuple[pd.Series, str | None] | NoReturn:
+    def merge_conflict_values(self, existing: pd.Series, incoming: pd.Series, index_to_alias_id: pd.Series) -> tuple[pd.Series, Sequence[str] | None] | NoReturn:
         '''
         Args should have identical indices
         and be only the conflicting region
@@ -133,7 +135,6 @@ class CanvasGradebookOutputFormat(OutputFormat):
         * Message to print if user requested warnings for conflicts.
         '''
         # constants
-        subline_start = "\n    "
         tab = "\t"
         def conflicts_detail():
             for row in pd.DataFrame({"existing": existing, "incoming": incoming}).itertuples():
@@ -150,7 +151,7 @@ class CanvasGradebookOutputFormat(OutputFormat):
         match self.if_existing:
             case self.ReplaceBehavior.REPLACE:
                 values = incoming
-                message = subline_start.join((
+                message = [
                     f"Replacing existing grade values:",
                     *(
                         tab.join((
@@ -161,10 +162,10 @@ class CanvasGradebookOutputFormat(OutputFormat):
                         for existing_val, new_val, student_name
                         in conflicts_detail()
                     )
-                ))
+                ]
             case self.ReplaceBehavior.PRESERVE:
                 values = existing
-                message = subline_start.join((
+                message = [
                     f"Preserving existing grade values:",
                     *(
                         tab.join((
@@ -174,10 +175,10 @@ class CanvasGradebookOutputFormat(OutputFormat):
                         for existing_val, _, student_name
                         in conflicts_detail()
                     )
-                ))
+                ]
             case self.ReplaceBehavior.INCREMENT:
                 values = pd.to_numeric(existing, errors='raise') + pd.to_numeric(incoming, errors='raise')
-                message = subline_start.join((
+                message = [
                     f"Incrementing existing grade values:",
                     *(
                         tab.join((
@@ -188,9 +189,9 @@ class CanvasGradebookOutputFormat(OutputFormat):
                         for existing_val, new_val, student_name
                         in conflicts_detail()
                     )
-                ))
+                ]
             case self.ReplaceBehavior.ERROR:
-                message = subline_start.join((
+                message = [
                     f"Unexpected existing grade values:",
                     *(
                         tab.join((
@@ -200,7 +201,7 @@ class CanvasGradebookOutputFormat(OutputFormat):
                         for existing_val, _, student_name
                         in conflicts_detail()
                     )
-                ))
+                ]
                 raise ValueError(message)
 
         return (values, message if self.warn_existing else None)
@@ -274,7 +275,7 @@ class CanvasGradebookOutputFormat(OutputFormat):
         )
         new_gradebook.loc[gb_loc_conflicting, self.assignment_column_label] = conflict_vals
         if warning_msg:
-            print(warning_msg)
+            self.warning_handler(warning_msg)
 
         # set non-conflicting
         gb_loc_non_conflicting = (~gb_loc_has_existing) & gb_loc_has_incoming

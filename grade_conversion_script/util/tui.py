@@ -442,3 +442,7 @@ def interactive_rubric_criteria_match(given_labels: Iterable[str], dest_labels: 
 
         out[given_label] = selection_str
     return out
+
+def default_warning_printer(lines: Sequence[str]) -> None:
+    subline_start = "\n    "
+    print(subline_start.join(lines))

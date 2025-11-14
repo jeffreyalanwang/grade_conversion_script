@@ -1,7 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Protocol
+from typing import Callable, Protocol, Sequence
 
 from grade_conversion_script.gui.state_components.constructor_element import \
     PartialObject, PartialObjectConstructingElement, ConstructorDependencies
@@ -20,6 +20,7 @@ class OutputDependencies(ConstructorDependencies):
     student_aliases: AliasRecord
     name_matcher: Matcher[str, str]
     rubric_criteria_matcher: RubricMatcher
+    warning_handler: Callable[[Sequence[str]], None]
 
 class PartialOutputConstructor[T: OutputFormat](
     PartialObject[
