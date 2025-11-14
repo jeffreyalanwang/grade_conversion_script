@@ -5,9 +5,8 @@ import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import DataFrame
 
-from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.custom_types import StudentPtsById
-from grade_conversion_script.util.funcs import best_effort_is_name
+from grade_conversion_script.util.alias_record import AliasRecord, best_effort_is_name
 from .base import OutputFormat
 
 

@@ -43,7 +43,7 @@ class AttendancePollEv(InputHandler):
     400            2
     401            0
     >>> print(student_ar)
-    {400: ["(0, 'Name One')", 'name1', 'name1@charlotte.edu'], 401: ["(1, 'Name Two')", 'name2', 'name2@charlotte.edu']}
+    {400: ['Name One', 'name1', 'name1@charlotte.edu'], 401: ['Name Two', 'name2', 'name2@charlotte.edu']}
     '''
 
     def __init__(

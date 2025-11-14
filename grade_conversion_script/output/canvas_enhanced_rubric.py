@@ -8,11 +8,10 @@ import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import DataFrame
 
-from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.custom_types import Matcher, RubricMatcher, \
     StudentPtsById
-from grade_conversion_script.util.funcs import associate_unrecognized_entities, \
-    best_effort_is_name, iter_by_element, reindex_to
+from grade_conversion_script.util.funcs import iter_by_element, reindex_to
+from grade_conversion_script.util.alias_record import AliasRecord, best_effort_is_name, associate_unrecognized_entities
 from grade_conversion_script.util.tui import default_warning_printer, interactive_rubric_criteria_match, \
     interactive_alias_match
 from .base import OutputFormat

@@ -4,10 +4,6 @@ from typing import *
 import pandas as pd
 from pandas._typing import Scalar as pd_scalar
 
-from grade_conversion_script.util.alias_record import AliasRecord
-from grade_conversion_script.util.custom_types \
-    import Matcher  # pyright: ignore[reportWildcardImportFromLibrary]
-
 
 # region Iteration
 
@@ -150,7 +146,8 @@ def join_str_cols(sep: str, df: pd.DataFrame) -> pd.Series:
         (index, sep.join(series))
         for index, series in jagged_rows
     )
-    return pd.Series(joined_rows)
+    return pd.Series({index: value
+        for index, value in joined_rows})
 
 @overload
 def reindex_to(to_realign: pd.Series, target_ids: pd.Series) -> pd.Series:
@@ -207,116 +204,3 @@ def reindex_to(to_realign: pd.Series | pd.DataFrame, target_ids: pd.Series) -> p
     return realigned
 
 # endregion pandas
-# region AliasRecord
-
-def best_effort_is_name(s: str) -> bool:
-    '''
-    Tries to check if a string is a name,
-    as it would appear in Canvas or a
-    web profile.
-
-    >>> list = ['Name One (copy 1)', 'Name One (copy 2)', 'name1', "1"]
-    >>> [best_effort_is_name(s) for s in list]
-    [True, True, False, False]
-    '''
-    if '(' in s and ')' in s[s.index('(')+1:]:
-        s = s[:s.index('(')] + s[s.rindex(')') + 1:]
-
-    for letter in s:
-
-        # letter is certainly allowed in name
-        if any((
-            letter.isalpha(),
-            letter in (' ', '-', "'", '.')
-        )):
-            continue
-
-        # s is certainly not name
-        if any((
-            letter.isdigit(),
-            letter in (',')
-        )):
-            return False
-
-    words = s.split(' ')
-    is_full_name = len(words) >= 2
-
-    required_capitalized_words = (words[0], words[-1])
-    is_required_capitalized = any(
-        any(
-            letter.isupper() # d'Angelo
-            or not letter.isalpha()
-            for letter in word
-        )
-        for word in required_capitalized_words
-    )
-
-    return is_full_name and is_required_capitalized
-
-UnrecognizedAliases = NamedTuple('UnrecognizedAliases', (
-    ('input', list[str]),
-    ('dest', list[str])
-))
-def get_unmatched_entities(
-        alias_record: AliasRecord,
-        *,
-        input_ids: Iterable[int],
-        dest_alias_lists: Iterable[str | Sequence[str]],
-  ) -> UnrecognizedAliases:
-
-    matched_dest_alias_lists = list[Sequence[str]]()
-    unmatched_dest_alias_lists = list[Sequence[str]]()
-    for dest_alias_list in dest_alias_lists:
-        if isinstance(dest_alias_list, str):
-            dest_alias_list = (dest_alias_list,)
-
-        if any(
-            dest_alias in alias_record.all_aliases
-            for dest_alias in dest_alias_list
-        ):
-            matched_dest_alias_lists.append(dest_alias_list)
-        else:
-            unmatched_dest_alias_lists.append(dest_alias_list)
-    unmatched_dest_names = [
-        unmatched_alias_list[0]
-        for unmatched_alias_list in unmatched_dest_alias_lists
-    ]
-
-    matched_dest_ids = [
-        alias_record.id_together(matched_dest_aliases)
-        for matched_dest_aliases in matched_dest_alias_lists
-    ]
-    unmatched_input_ids = filter(
-        lambda input_id: input_id not in matched_dest_ids,
-        input_ids
-    )
-    unmatched_input_names = [
-        alias_record.best_effort_alias(best_effort_is_name, id=input_id)
-        for input_id in unmatched_input_ids
-    ]
-
-    return UnrecognizedAliases(input=unmatched_input_names, dest=unmatched_dest_names)
-
-def associate_unrecognized_entities(
-        alias_record: AliasRecord,
-        name_match: Matcher[str, str],
-        *,
-        input_ids: Iterable[int],
-        dest_alias_lists: Iterable[str | Sequence[str]],
-  ) -> None:
-    unmatched_input_names, unmatched_dest_names = get_unmatched_entities(
-        alias_record,
-        input_ids=input_ids,
-        dest_alias_lists=dest_alias_lists
-    )
-    matched: dict[str, str] = name_match(
-        unmatched_input_names,
-        unmatched_dest_names
-    )
-    for input_name, dest_name in matched.items():
-        alias_record.add_together(
-            aliases=(input_name, dest_name),
-            allow_new=False
-        )
-
-# endregion AliasRecord
