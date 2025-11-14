@@ -160,6 +160,20 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
                         result_actions.inputs = new_inputs
                     output_select.on_data_changed.subscribe(update_result_inputs)
                     execute.on_data_changed.subscribe(update_result_inputs)
+
+                    # Ugly fix: do not allow start even if previous
+                    # neighbor is continue ready, because we might
+                    # need to collect more data
+                    def prevent_start():
+                        if result_actions.inputs is None:
+                            result_actions.set_state_immediately(
+                                result_actions.state.with_start_allowed(False),)
+                    def actual_state_change():
+                        if result_actions.inputs is not None:
+                            result_actions.set_state_immediately(
+                                result_actions.state.with_start_allowed(True),)
+                    result_actions.on_state_changed.subscribe(prevent_start)
+                    result_actions.on_inputs_changed.subscribe(actual_state_change)
                 case _:
                     raise ValueError(f"Unrecognized flow step takes input data: {step}")
 

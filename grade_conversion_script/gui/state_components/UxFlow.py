@@ -244,7 +244,6 @@ class FlowStepInputElement[T](FlowStepElement):
 
     @property
     def inputs(self) -> T | None:
-        assert self._inputs is not None, f"Inputs not set (current state is {self.state.name})"
         return self._inputs
     @inputs.setter
     def inputs(self, values: T | None):
