@@ -72,9 +72,35 @@ Convert to Enhanced Rubric format (Canvas).
 
 Save result to `./output.csv`.
 
+## More options
+
+### GUI
+
+Prefix the URL as shown to ensure the extra GUI dependencies are installed.
+Then, replace `grade-convert` with `grade-convert-app` to run the GUI.
+
+```console
+pipx run --spec "grade_conversion_script[gui] @ git+https://github.com/jeffreyalanwang/grade_conversion_script.git" grade-convert-app
+
+# Local install:
+pipx install "grade_conversion_script[gui] @ git+https://github.com/jeffreyalanwang/grade_conversion_script.git"
+grade-convert-app
+```
+
+### Quicker start with `uv`
+
+`uv` is a popular alternative to `pip` and `pipx` that might be able to build and run this tool more quickly. It implicitly caches a local install but updates it if needed.
+
+[Once installed](https://docs.astral.sh/uv/getting-started/installation/), it can substitute any of the above commands. `uvx --from` replaces `pipx run --spec`.
+
+```console
+uvx --from git+https://github.com/jeffreyalanwang/grade_conversion_script.git grade-convert
+uvx --from "grade_conversion_script[gui] @ git+https://github.com/jeffreyalanwang/grade_conversion_script.git" grade-convert-app
+```
+
 ## Extending
 
-> 💡 It may be easiest to copy code from an existing input or output module.
+> 💡 It is easiest to copy code from an existing input or output module.
 
 1. In [input/](/grade_conversion_script/input/) or [output/](/grade_conversion_script/output/), create a new module.
 
@@ -88,13 +114,18 @@ Save result to `./output.csv`.
     * See `_prepare_input_handler()` and `_prepare_output_handler()`
       <br> to match these options to your corresponding new class.
 
-5. Commit new code or fork this repository;
+5. (optional) Add GUI functionality in [gui/flow_components/select_input/](/grade_conversion_script/gui/flow_components/select_input/) or [gui/flow_components/select_output/](/grade_conversion_script/gui/flow_components/select_output/).
+   * Create a new handler element and export its metadata, as seen in existing components in the directory.
+   * Include the exported metadata in the `HANDLERS` constant (located in [select_input_handler.py](/grade_conversion_script/gui/flow_components/select_input/select_input_handler.py) or [select_output_format.py](/grade_conversion_script/gui/flow_components/select_output/select_output_format.py)).
+    
+6. Commit new code or fork this repository;
    if applicable, distribute a new `pipx run` command with a link to forked repository.
 
 ## Tests
 
+The following runs all doctests as well as files in [test/](/test/).
+
 ```console
 pip install pytest
 pytest ./test --doctest-modules ./grade_conversion_script
-pytest .
 ```
