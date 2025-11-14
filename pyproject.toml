@@ -32,14 +32,16 @@ doctest_optionflags = ["NORMALIZE_WHITESPACE", "IGNORE_EXCEPTION_DETAIL"]
 include = [
     "grade_conversion_script",
     # top-level packages
-    "grade_conversion_script.input", "grade_conversion_script.output", "grade_conversion_script.util",
+    "grade_conversion_script.gui",
+    "grade_conversion_script.input", "grade_conversion_script.output",
+    "grade_conversion_script.util",
     # top-level modules
     "grade_conversion_script.bootstrap_utils", "grade_conversion_script.cmd_opts"
 ]
 exclude = [".*", "dist*", "*test*", "*build.py"]
 
 [tool.setuptools.package-data]
-grade_conversion_script.gui = ["base_components/*.vue"]
+grade_conversion_script = ["base_components/*.vue", "base_components/*.js"]
 
 [tool.pyright]
 # Specify the type checking mode. Options include "off", "basic", "standard", "strict", "recommended", and "all".
