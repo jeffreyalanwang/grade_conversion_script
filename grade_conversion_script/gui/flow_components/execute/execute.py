@@ -61,11 +61,11 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
             self._add_step_callback.__call__(step)
         self.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED)  # ensure prompted step is allowed, and ensure this step does not reset
 
-    def cleanup_children(self): # TODO take a callback from parent instead, to decrease FlowStepHolder birthed sibling count
+    def delete_children(self):
+        # TODO take a callback from parent instead, to actually remove the element
         while self._birthed_siblings:
-            sibling = self._birthed_siblings.pop()
-            with sibling:
-                sibling.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED) # not sure if/why this is needed
+            with self._birthed_siblings.pop() as sibling: # WARNING: context enter actually changes type to Element
+                sibling.delete()
 
     async def execute(
         self,
@@ -74,6 +74,8 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
         temp_output_file: Path,
     ):
         assert temp_output_file.parent.exists()
+        if self._birthed_siblings:
+            self.delete_children()
 
         _ = self.button.props(add='loading')
         self.button.disable()
@@ -135,7 +137,6 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 type='negative',)
             logging.exception(e)
         finally:
-            self.cleanup_children()
             if not self.state.requires_continue:
                 self.button.enable()
             _ = self.button.props(remove='loading')
