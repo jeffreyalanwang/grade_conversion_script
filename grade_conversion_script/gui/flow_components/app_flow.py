@@ -45,7 +45,6 @@ def decorate_step(step: UxFlow.FlowStepElement) -> Element:
 
     return decorated
 
-
 def generate_execute_depends(
     tmp_dir: Path,
     input_data: ImportDataFlowStep,
@@ -128,55 +127,6 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
             steps=steps,
             **kwargs,)
 
-        self.bind_element_inputs(steps)
-
-    def bind_element_inputs(self, steps: tuple[UxFlow.FlowStepElement, ...]):
-
-        for step in steps:
-            if not isinstance(step, UxFlow.FlowStepInputElement):
-                continue
-            match step:
-                case ExecuteStep():
-                    input_data = self.get_step(ImportDataFlowStep)
-                    input_select = self.get_step(InputHandlerSelectStep)
-                    output_select = self.get_step(OutputFormatSelectStep)
-
-                    execute = step
-                    def update_execute_inputs():
-                        new_inputs = generate_execute_depends(
-                            self.tmp_dir, input_data, input_select, output_select, )
-                        execute.inputs = new_inputs
-                    input_data.on_data_changed.subscribe(update_execute_inputs)
-                    input_select.on_data_changed.subscribe(update_execute_inputs)
-                    output_select.on_data_changed.subscribe(update_execute_inputs)
-                case ResultActionsStep():
-                    output_select = self.get_step(OutputFormatSelectStep)
-                    execute = self.get_step(ExecuteStep)
-
-                    result_actions = step
-                    def update_result_inputs():
-                        new_inputs = generate_result_actions_depends(
-                            output_select, execute,)
-                        result_actions.inputs = new_inputs
-                    output_select.on_data_changed.subscribe(update_result_inputs)
-                    execute.on_data_changed.subscribe(update_result_inputs)
-
-                    # Ugly fix: do not allow start even if previous
-                    # neighbor is continue ready, because we might
-                    # need to collect more data
-                    def prevent_start():
-                        if result_actions.inputs is None:
-                            result_actions.set_state_immediately(
-                                result_actions.state.with_start_allowed(False),)
-                    def actual_state_change():
-                        if result_actions.inputs is not None:
-                            result_actions.set_state_immediately(
-                                result_actions.state.with_start_allowed(True),)
-                    result_actions.on_state_changed.subscribe(prevent_start)
-                    result_actions.on_inputs_changed.subscribe(actual_state_change)
-                case _:
-                    raise ValueError(f"Unrecognized flow step takes input data: {step}")
-
     @override
     def distribute_items(self, count: int) -> tuple[int, ...]:
         # We would specifically like
@@ -188,6 +138,36 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
             return super().distribute_items(count)
 
     @override
+    def _bind_element_inputs(self, step: UxFlow.FlowStepElement):
+        match step:
+            case ExecuteStep():
+                input_data = self.get_step(ImportDataFlowStep)
+                input_select = self.get_step(InputHandlerSelectStep)
+                output_select = self.get_step(OutputFormatSelectStep)
+
+                execute = step
+                def update_execute_inputs():
+                    new_inputs = generate_execute_depends(
+                        self.tmp_dir, input_data, input_select, output_select, )
+                    execute.inputs = new_inputs
+                input_data.on_data_changed.subscribe(update_execute_inputs)
+                input_select.on_data_changed.subscribe(update_execute_inputs)
+                output_select.on_data_changed.subscribe(update_execute_inputs)
+            case ResultActionsStep():
+                output_select = self.get_step(OutputFormatSelectStep)
+                execute = self.get_step(ExecuteStep)
+
+                result_actions = step
+                def update_result_inputs():
+                    new_inputs = generate_result_actions_depends(
+                        output_select, execute,)
+                    result_actions.inputs = new_inputs
+                output_select.on_data_changed.subscribe(update_result_inputs)
+                execute.on_data_changed.subscribe(update_result_inputs)
+            case _:
+                super()._bind_element_inputs(step)
+
+    @override
     def add_flow_step(self, element: UxFlow.FlowStepElement, position: int) -> None:
         '''
         Use this method to add a flow step;
@@ -196,8 +176,7 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
         Also modifies FlowStepHolder's methods which rely on self.add_flow_step
         (e.g. `add_child_sibling`).
         '''
-        decorated_element = decorate_step(element)
-        super().add_child(decorated_element, position)
+        super().add_child(decorate_step(element), position)
         super().add_flow_step(element, position)
 
 if __name__ in {"__main__", "__mp_main__"}:

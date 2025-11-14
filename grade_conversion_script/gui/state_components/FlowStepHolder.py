@@ -1,6 +1,6 @@
 from collections import Counter
 from collections.abc import Sequence
-from typing import Callable, Final, NamedTuple
+from typing import Any, Callable, Final, NamedTuple
 
 from grade_conversion_script.gui.state_components import UxFlow
 from grade_conversion_script.util.funcs import tuple_insert
@@ -35,10 +35,23 @@ class FlowStepHolder:
                 next_step= self.steps[i + 1] if i + 1 < len(self.steps) else None,)
             self._set_state_change_callbacks(step, *callbacks)
 
+        # Setup state changes for FlowStepInputElement.
+        for step in self.steps:
+            if isinstance(step, UxFlow.FlowStepInputElement):
+                self._bind_element_inputs(step)
+
+    def _bind_element_inputs(self, step: UxFlow.FlowStepElement) -> None:
+        assert isinstance(step, UxFlow.FlowStepInputElement)
+        raise NotImplementedError(f"Unrecognized flow step takes input data: {step}")
+
     def _generate_state_change_callbacks(self,
         prev_step: UxFlow.FlowStepElement | None,
         next_step: UxFlow.FlowStepElement | None,
     ) -> LinkingCallbacks:
+        # Note: Python uses late binding; however,
+        # function scope does not change values of
+        # prev_step or next_step, so `prev_step` and
+        # `next_step` may be considered early-bound.
         def callback_modifying_prev_step(new_state: UxFlow.State):
             if not prev_step:
                 return
@@ -51,7 +64,17 @@ class FlowStepHolder:
         def callback_modifying_next_step(new_state: UxFlow.State):
             if not next_step:
                 return
-            if new_state.allows_continue:
+            if new_state.allows_continue and (
+                not isinstance(next_step, UxFlow.FlowStepInputElement)
+                or next_step.inputs is not None
+                    # In case this step is ready for continue
+                    # before `next_step` is ready for begin
+                    # (because its `inputs` attr is still None),
+                    # we assume a new element will be inserted
+                    # after this one, before `next_step`,
+                    # whose completion will trigger `next_step`
+                    # to begin.
+            ):
                 next_step.set_state_debounced(
                     next_step.state.with_start_allowed(True),)
             else:
@@ -67,7 +90,8 @@ class FlowStepHolder:
         modifying_next_step: Callable[[UxFlow.State], None] | None,
     ):
         '''
-        Updates callbacks and also registers them (so they can be replaced later).
+        Updates one backward- and one forwarding-linking callback
+        on `step` and also registers them (so they can be replaced later).
         If arg is None, that callback is not modified.
         '''
         old_callback_set = self.step_state_callbacks.get(step, None)
@@ -105,6 +129,9 @@ class FlowStepHolder:
     def add_flow_step(self, element: UxFlow.FlowStepElement, position: int) -> None:
         self.steps = tuple_insert(position, element, self.steps)
 
+        if isinstance(element, UxFlow.FlowStepInputElement):
+            self._bind_element_inputs(element)
+
         prev_element = self.steps[position - 1] if position > 0 else None
         curr_element = element
         next_element = self.steps[position + 1] if position + 1 < len(self.steps) else None
@@ -132,7 +159,7 @@ class FlowStepHolder:
                 modifying_prev_step = generated_callbacks.modifying_prev_step,
                 modifying_next_step = None,)
 
-        # Manually trigger state changes
+        # Manually trigger state changes once now
 
         if not prev_element:
             element.set_state_immediately(element.state.with_start_allowed(True))
