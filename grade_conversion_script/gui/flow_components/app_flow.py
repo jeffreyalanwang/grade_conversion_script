@@ -1,5 +1,5 @@
-import tempfile
 from pathlib import Path
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 from typing import override
 
 from nicegui.element import Element
@@ -54,7 +54,7 @@ def generate_execute_depends(
 ) -> ExecuteDepends | None:
     assert tmp_dir.exists()
     # TODO pandas can read file buffers, switch to a non-named tempfile
-    tmpfile = tempfile.NamedTemporaryFile(
+    tmpfile = NamedTemporaryFile(
         delete_on_close=False,
         dir=tmp_dir,)
     tmpfile.close()
@@ -99,7 +99,7 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
     SplitPanesLayout (manages visual positioning).
     '''
     def __init__(self, *args, **kwargs):
-        self._tmp_dir_obj = TemporaryDirectory()
+        self._tmp_dir_obj = TemporaryDirectory() # TemporaryDirectory will clean itself up when no more references are held.
         self.tmp_dir = Path(self._tmp_dir_obj.name)
 
         steps: tuple[UxFlow.FlowStepElement, ...] = (
@@ -127,9 +127,6 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
             **kwargs,)
 
         self.bind_element_inputs(steps)
-
-    def __del__(self):
-        self._tmp_dir_obj.cleanup()
 
     def bind_element_inputs(self, steps: tuple[UxFlow.FlowStepElement, ...]):
 
@@ -192,7 +189,6 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
 
 if __name__ in {"__main__", "__mp_main__"}:
     from nicegui import ui
-    from tempfile import TemporaryDirectory
 
     app_flow = GradeConversionAppFlow()
     ui.run(native=False, reload=False)

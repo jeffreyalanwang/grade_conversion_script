@@ -48,16 +48,19 @@ ui.add_css(
 ui.add_css(
     shared=True,
     content='''
-    @layer utility {
+    @layer utility {    
         *:not(.fullscreen-paneview) > :not(.splitpanes__pane):has(> .splitpanes.fullscreen-paneview) {
             position: absolute;
             inset: 0;
-            border-radius: 20px;
-            border-color: #44444444;
-            border-width: 10px;
-            border-style: solid;
-            box-sizing: border-box;
-            box-shadow: 0px 0px 0px 10px #44444444;
+            
+            &:not(:has(> .v-scroll-paneview)) {
+                border-radius: 20px;
+                border-color: #444444;
+                border-width: 10px;
+                border-style: solid;
+                box-sizing: border-box;
+                box-shadow: 0px 0px 0px 10px #444444;
+            }
         }
         .splitpanes.fullscreen-paneview {
             --pane-corner-radius: 10px;
@@ -87,7 +90,7 @@ ui.add_css(
                     --pill-thickness: 6px;
                     --pill-padding: 2px;
                     --total-thickness: calc(var(--pill-thickness) + var(--pill-padding) + 2 * var(--inverted-corner-radius));
-                    background-color: #44444444;
+                    background-color: #444444;
                     
                     margin: 0;
                     position: absolute;
@@ -246,7 +249,7 @@ class SplitPanesLayout(Element):
                 _ = (
                     container
                     .classes('fullscreen-paneview')
-                    .classes(f'min-h-[{count * item_height}px]')
+                    .classes(f'v-scroll-paneview min-h-[{count * item_height}px]')
                 )
                 panes.extend(
                     SplitPane()
