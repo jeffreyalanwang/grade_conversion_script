@@ -62,7 +62,8 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
     def cleanup_children(self): # TODO take a callback from parent instead, to decrease FlowStepHolder birthed sibling count
         while self._birthed_siblings:
-            self._birthed_siblings.pop().delete()
+            with self._birthed_siblings.pop() as sibling:
+                sibling.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED)
 
     async def execute(
         self,
