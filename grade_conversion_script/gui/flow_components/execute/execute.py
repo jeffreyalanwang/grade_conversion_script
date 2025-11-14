@@ -55,6 +55,7 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
             temp_output_file=self.inputs.temp_dest_file,)
 
     def _prompt_additional_step(self, step: UxFlow.FlowStepElement) -> None:
+        assert isinstance(step, UxFlow.FlowStepElement)
         self._birthed_siblings.append(step)
         with self:
             self._add_step_callback.__call__(step)
@@ -62,8 +63,9 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
     def cleanup_children(self): # TODO take a callback from parent instead, to decrease FlowStepHolder birthed sibling count
         while self._birthed_siblings:
-            with self._birthed_siblings.pop() as sibling:
-                sibling.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED)
+            sibling = self._birthed_siblings.pop()
+            with sibling:
+                sibling.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED) # not sure if/why this is needed
 
     async def execute(
         self,

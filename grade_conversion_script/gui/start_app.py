@@ -45,5 +45,4 @@ def main():
     )
 
 if __name__ in {"__main__", "__mp_main__"}:
-    DEBUG = True   # pyright: ignore[reportConstantRedefinition]
     main()
