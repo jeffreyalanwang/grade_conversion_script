@@ -11,8 +11,8 @@ from nicegui.element import Element
 
 from grade_conversion_script.gui.base_components.inner_loading import \
     InnerLoadingContainer
-from grade_conversion_script.util.funcs import set_light_dark, wait_for_event, \
-    truncate_exception_to_html
+from grade_conversion_script.gui.util \
+    import set_light_dark, wait_for_event, truncate_exception_to_html
 
 logger = logging.getLogger(__name__)
 

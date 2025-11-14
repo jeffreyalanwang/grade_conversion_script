@@ -16,10 +16,10 @@ from grade_conversion_script.gui.flow_components.select_input.common \
 from grade_conversion_script.gui.flow_components.select_output.common \
     import OutputDependencies, PartialOutputConstructor
 from grade_conversion_script.gui.state_components import UxFlow
+from grade_conversion_script.gui.util import wait_for_event, wrap_async
 from grade_conversion_script.input import InputHandler
 from grade_conversion_script.output import OutputFormat
 from grade_conversion_script.util import AliasRecord
-from grade_conversion_script.util.funcs import wait_for_event, wrap_async
 
 
 class PartialHandlerConstructors(NamedTuple):

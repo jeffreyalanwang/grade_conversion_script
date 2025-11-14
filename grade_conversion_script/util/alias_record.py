@@ -5,7 +5,7 @@ import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
 
-from grade_conversion_script.util.custom_types import IndexFlag, AnyById, \
+from grade_conversion_script.util.custom_types import AnyById, IndexFlag, \
     IterableOfStr
 
 python_id = id

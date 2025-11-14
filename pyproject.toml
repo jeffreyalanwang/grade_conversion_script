@@ -41,7 +41,7 @@ include = [
 exclude = [".*", "dist*", "*test*", "*build.py"]
 
 [tool.setuptools.package-data]
-grade_conversion_script = ["base_components/*.vue", "base_components/*.js"]
+grade_conversion_script = ["gui/base_components/*.vue", "gui/base_components/*.js"]
 
 [tool.pyright]
 # Specify the type checking mode. Options include "off", "basic", "standard", "strict", "recommended", and "all".

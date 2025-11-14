@@ -9,7 +9,7 @@ from nicegui import ElementFilter, ui, Event
 from nicegui.element import Element
 from nicegui.elements.mixins.disableable_element import DisableableElement
 
-from grade_conversion_script.util.funcs import DebouncedRunner
+from grade_conversion_script.gui.util import DebouncedRunner
 
 logger = logging.getLogger(__name__)
 

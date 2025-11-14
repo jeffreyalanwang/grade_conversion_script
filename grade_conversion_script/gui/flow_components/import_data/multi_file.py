@@ -11,9 +11,12 @@ from grade_conversion_script.gui.flow_components.import_data.single_file import 
     DataImportEntry, ImportDataSingleFile
 from grade_conversion_script.gui.flow_components.import_data.tab_util import \
     TabOptionButton
-from grade_conversion_script.gui.state_components import UxFlow as UxFlow
-from grade_conversion_script.util.funcs import set_light_dark, index_where, \
-    tuple_insert, tuple_pop, tuple_replace, unique_readable_html_safe
+from grade_conversion_script.gui.state_components \
+    import UxFlow as UxFlow
+from grade_conversion_script.gui.util \
+    import set_light_dark, unique_readable_html_safe
+from grade_conversion_script.util.funcs \
+    import index_where, tuple_insert, tuple_pop, tuple_replace
 
 # Default line-height is slightly higher
 # than text, causes misalignment in y-position
