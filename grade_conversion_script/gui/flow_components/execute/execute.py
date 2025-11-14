@@ -150,9 +150,10 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
             # do not exit context (disabling all children) until new step is extracted to another place
             self._prompt_additional_step(element) # attach element in proper place
         while True:
-            data = await wait_for_event(element.on_data_changed.subscribe)
-            if data[0] is not None and element.state >= UxFlow.State.CONTINUE_REQUIRED:
-                return data[0]
+            data, = await wait_for_event(element.on_data_changed.subscribe)
+            if element.state.requires_continue: # wait for Done button
+                assert data is not None
+                return data
 
     async def prompt_rubric_criteria_match(self,
         given_labels: Collection[str],
@@ -163,9 +164,10 @@ class ExecuteStep(  # pyright: ignore[reportUnsafeMultipleInheritance]
             # do not exit context (disabling all children) until new step is extracted to another place
             self._prompt_additional_step(element) # attach element in proper place
         while True:
-            data = await wait_for_event(element.on_data_changed.subscribe)
-            if data[0] is not None and element.state >= UxFlow.State.CONTINUE_REQUIRED:
-                return data[0]
+            data, = await wait_for_event(element.on_data_changed.subscribe)
+            if element.state.requires_continue: # wait for Done button
+                assert data is not None
+                return data
 
     async def show_warnings(self, messages: Sequence[str]):
         if not messages:

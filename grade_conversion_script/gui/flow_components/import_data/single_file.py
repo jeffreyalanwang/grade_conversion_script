@@ -203,7 +203,7 @@ class ImportDataSingleFile(Element):
     async def uploading_callback(self, e_begin_uploading: events.UiEventArguments):
 
         with self.loading_overlay.show(msg="Loading file contents..."):
-            e_uploaded, = await wait_for_event(self.uploader.on_upload)
+            e_uploaded, = await wait_for_event(self.uploader.on_upload)  # pyright: ignore[reportAssignmentType]
             filename = e_uploaded.file.name
         with self.show_file_processing_loading(filename):
 
@@ -236,7 +236,7 @@ class ImportDataSingleFile(Element):
                 _ = (
                     ui.label(df_label)
                     .classes('ag-theme-params-2 mimic-ag-header')
-                    .classes('w-full')
+                    .classes('w-full overflow-y-hidden')
                 )
                 _ = (
                     ui.aggrid.from_pandas(
