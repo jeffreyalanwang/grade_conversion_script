@@ -8,7 +8,7 @@ from nicegui.events import Handler, ClickEventArguments
 SPACE=' '
 
 def button_label(text: str = '') -> ui.label:
-    return ui.label(text)
+    return ui.label(text).classes('leading-none truncate')
 
 def placeholder_label(text: str = SPACE) -> ui.label:
     return button_label(text).classes('italic opacity-75')
@@ -28,14 +28,14 @@ class ButtonDualLabel(Button):
         placeholders = placeholders or (None, None)
         placeholders = (placeholders[0] or SPACE, placeholders[1] or SPACE)
 
-        with self:
-            with ui.row(align_items = 'center', wrap = False).classes('w-full'):
+        with self.props('dense'):
+            with ui.row(align_items = 'center', wrap = False).classes('w-full gap-1'):
                 self.icon_element: Icon | None = ui.icon(icon) if icon else None
-                with ui.column().classes(add = 'w-full gap-0'):
-                    with ui.row():
+                with ui.column().classes(add = 'overflow-hidden w-full gap-0'):
+                    with ui.row().classes('w-full'):
                         self.top_label: Final = button_label()
                         self.top_placeholder: Final = placeholder_label(placeholders[0])
-                    with ui.row().style('margin-top: -0.5em;'):
+                    with ui.row().classes('w-full'):
                         self.bottom_label: Final = button_label()
                         self.bottom_placeholder: Final = placeholder_label(placeholders[1])
 

@@ -9,7 +9,7 @@ from grade_conversion_script.gui.flow_components.pane_header import \
     ClientSideHeaderElement
 from grade_conversion_script.gui.state_components import UxFlow
 
-
+# TODO this does not do anything.
 class WarnExistings(  # pyright: ignore[reportUnsafeMultipleInheritance]
     UxFlow.FlowStepElement,
     ClientSideHeaderElement,

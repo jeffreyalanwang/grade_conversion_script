@@ -47,6 +47,16 @@ ui.add_css(
 
 ui.add_css(
     shared=True,
+    # TODO add this rule, which relies on CSS variables currently buried further deep
+    # .splitpanes.fullscreen-paneview.v-scroll-paneview::before {
+    #     width: 100%;
+    #     height: var(--total-thickness);
+    #     inset: calc(-1 * var(--inverted-corner-radius)) 0;
+    #     clip-path: shape( evenodd from 0 0, line to 0 100%, arc by var(--c-r) var(--c-nr) of var(--c-r) cw, line by calc(100% - var(--c-2r)) 0, arc by var(--c-r) var(--c-r) of var(--c-r) cw, line to 100% 0, arc by var(--c-nr) var(--c-r) of var(--c-r) cw, line to var(--c-r) var(--c-r), arc to 0 0 of var(--c-r) cw, close, move to calc(50% - var(--p-12l)) calc(50% - var(--p-12w)), line by var(--p-l) 0, arc by 0 var(--p-w) of var(--p-12w) cw, line by var(--p-nl) 0, arc by 0 var(--p-nw) of var(--p-12w) cw, close );
+    #     content: '';
+    #     position: relative;
+    #     background-color: #444444;
+    # }
     content='''
     @layer utility {    
         *:not(.fullscreen-paneview) > :not(.splitpanes__pane):has(> .splitpanes.fullscreen-paneview) {
@@ -220,7 +230,7 @@ class SplitPanesLayout(Element):
         ''' If viewport_size_px is None, it is not considered. '''
 
         match viewport_size_px:
-            case (width, height) if (width <= height) or (width < 750):
+            case (width, height) if (width <= height) or (width < 550):
                 layout_type = 'vertical'
             case None | _:
                 layout_type = 'panes'

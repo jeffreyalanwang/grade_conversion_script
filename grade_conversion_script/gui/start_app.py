@@ -37,6 +37,7 @@ def main():
         title='Grade Conversion',
         favicon='📱',
         native=not DEBUG,
+        window_size=(750, 775) if not DEBUG else None,
         dark=False,
 
         tailwind=True,

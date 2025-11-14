@@ -104,7 +104,6 @@ class DualListMatch(Element):
                         placeholders=('Match A', 'Match B'),
                     )
                     .classes(add='mx-1 my-auto')
-                    .classes(add='text-ellipsis')
                     .props(add='outline no-caps')
                     .props('title="Add match from selected"'))
 
