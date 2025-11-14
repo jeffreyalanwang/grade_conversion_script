@@ -32,14 +32,14 @@ TITLES: dict[type[UxFlow.FlowStepElement], str] = {
 }
 
 def decorate_step(step: UxFlow.FlowStepElement) -> Element:
+    ''' Wraps decorate method to bind decorator element to step's visual state. '''
 
     header_text = TITLES.get(type(step), None)
     decorated = decorate_generic(step, header_text)
 
     def set_state_on_parent(state: UxFlow.State):
-        visual_state = UxFlow.VisualState.from_flow_state(state)
         UxFlow.VisualState.clear_all_from(decorated)
-        visual_state.set_on(decorated)
+        UxFlow.VisualState.from_flow_state(state).set_on_container(decorated)
     set_state_on_parent(step.state)
     step.on_state_changed.subscribe(set_state_on_parent)
 

@@ -105,6 +105,14 @@ class VisualState(Enum):
         '''
         return f'disabled-by-ux-flow-step-{element.id}'
 
+    def set_on_container(self, container: Element):
+        ''' Use if a container needs visual decoration to match its child. '''
+        _ = container.classes(add=self.value)
+
+    def remove_from_container(self, container: Element):
+        ''' See `set_on_container`. '''
+        _ = container.classes(remove=self.value)
+
     def set_on(self, element: ui.element):
         _ = element.classes(add=self.value)
         if self.disables_elements:
