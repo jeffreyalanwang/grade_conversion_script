@@ -1,15 +1,15 @@
-import pandas as pd
 from pathlib import Path
+from typing import *  # pyright: ignore[reportWildcardImportFromLibrary]
 
-from .base import OutputFormat
-
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
+import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import DataFrame
 
 from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.custom_types import StudentPtsById
 from grade_conversion_script.util.funcs import best_effort_is_name
+from .base import OutputFormat
+
 
 class AcrOutputFormat(OutputFormat):
     '''

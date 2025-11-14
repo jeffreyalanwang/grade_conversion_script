@@ -1,14 +1,14 @@
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
+from typing import *  # pyright: ignore[reportWildcardImportFromLibrary]
+
 import pandas as pd
 
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
-
-from grade_conversion_script.util import EnumAction, AliasRecord
-from grade_conversion_script.util.funcs import to_real_number
 from grade_conversion_script.input import *
 from grade_conversion_script.output import *
+from grade_conversion_script.util import EnumAction, AliasRecord
+from grade_conversion_script.util.funcs import to_real_number
 
 '''
 To add a new command option, modify `setup_per_args` to handle

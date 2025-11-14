@@ -1,11 +1,12 @@
-from pathlib import Path
-import pandas as pd
-
 from abc import ABC, abstractmethod
+from pathlib import Path
 
+import pandas as pd
 from pandera.typing import DataFrame
+
 from grade_conversion_script.util import AliasRecord
 from grade_conversion_script.util.custom_types import StudentPtsById
+
 
 class OutputFormat(ABC):
     '''

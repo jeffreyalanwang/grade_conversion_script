@@ -1,19 +1,12 @@
 # We need to make sure non-packaged dependencies
 # (i.e. packages with native extension code, e.g. pandas)
 # are available
-import os
-
 from grade_conversion_script.bootstrap_utils import ensure_pkg_dependencies
-
 ensure_pkg_dependencies()
 
-import sys
-from pathlib import Path
-import logging
-import pandas as pd
-
-
 def cli_main():
+    from pathlib import Path
+    import pandas as pd
     from grade_conversion_script import cmd_opts
 
     handlers, files = cmd_opts.run() # argparse reads cmd args
@@ -54,7 +47,9 @@ def cli_main():
     print(f"Result saved to {output_file_path}.")
 
 def gui_main():
+    import os, logging
     from grade_conversion_script import gui
+
     logging.basicConfig(
         level=logging.ERROR,
         format="%(asctime)s - %(levelname)s - %(message)s",
@@ -64,6 +59,7 @@ def gui_main():
     gui.main()
 
 if __name__ in ('__main__', '__mp_main__'):
+    import sys
     if 'gui' in sys.argv:
         gui_main()
     else:

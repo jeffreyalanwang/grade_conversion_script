@@ -1,3 +1,1 @@
-from .start_app import main
-
-__all__ = ['main']
+from .start_app import main as main

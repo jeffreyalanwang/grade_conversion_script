@@ -1,19 +1,20 @@
 import enum
 import inspect
-import pandas as pd
 from pathlib import Path
+from typing import *  # pyright: ignore[reportWildcardImportFromLibrary]
 
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
-from pandas.api.types import is_integer_dtype
+import pandas as pd
 import pandera.pandas as pa
+from pandas.api.types import is_integer_dtype
 from pandera.typing import DataFrame
 
+from grade_conversion_script.util import AliasRecord
+from grade_conversion_script.util.custom_types import Matcher, StudentPtsById
+from grade_conversion_script.util.funcs import associate_unrecognized_entities, \
+    best_effort_is_name, contains_row_for, reindex_to
+from grade_conversion_script.util.tui import interactive_alias_match
 from .base import OutputFormat
 
-from grade_conversion_script.util import AliasRecord
-from grade_conversion_script.util.funcs import associate_unrecognized_entities, best_effort_is_name, contains_row_for, reindex_to
-from grade_conversion_script.util.custom_types import Matcher, StudentPtsById
-from grade_conversion_script.util.tui import interactive_alias_match
 
 class CanvasGradebookOutputFormat(OutputFormat):
     '''

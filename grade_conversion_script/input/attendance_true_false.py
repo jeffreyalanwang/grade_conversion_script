@@ -1,13 +1,14 @@
-import pandas as pd
-
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
+from typing import *  # pyright: ignore[reportWildcardImportFromLibrary]
+
+import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import DataFrame
-from grade_conversion_script.util.custom_types import BoolsById, StudentPtsById
 
 from grade_conversion_script.util import AliasRecord
+from grade_conversion_script.util.custom_types import BoolsById, StudentPtsById
 from .base import InputHandler, bool_to_pts
+
 
 class NoAttendanceRuleException(Exception):
     pass

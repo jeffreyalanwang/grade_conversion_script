@@ -14,7 +14,8 @@ if DEBUG:
 
 def main():
 
-    GradeConversionAppFlow()
+    with GradeConversionAppFlow():
+        pass
 
     ui.run(
         title='Grade Conversion',
