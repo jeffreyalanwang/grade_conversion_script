@@ -177,11 +177,13 @@ class ConsoleFrame():
         ))
 
         # print each line one-by-one, increment self.used_lines by line count
-        assert len(wrapped_lines) > 0
-        for line in wrapped_lines[:-1]:
-            print(line)
-            self.used_lines += 1
-        print(wrapped_lines[-1], end=("\n" if end_newline else None))
+        if len(wrapped_lines) > 0:
+            for line in wrapped_lines[:-1]:
+                print(line)
+                self.used_lines += 1
+            print(wrapped_lines[-1], end=("\n" if end_newline else None))
+        else:
+            print('', end=("\n" if end_newline else None))
 
     def _prompt(self, prompt_msg: str, check: Callable[[str], bool]) -> str:
         original_cursor_pos = get_cursor_pos()
@@ -377,7 +379,7 @@ def interactive_alias_match(user: Collection[str], dest: Collection[str]) -> dic
 
     for i, curr_alias in enumerate(frames_by):
         screen = ConsoleFrame(prompt_header=True)
-        screen.print_header(f"Student name matching ({i}/{len(frames_by)})")
+        screen.print_header(f"Student name matching ({i + 1}/{len(frames_by)})")
         start_idx = 1
         screen.print_enumerated(select_from, start_idx)
         screen.display_complete()
@@ -426,7 +428,7 @@ def interactive_rubric_criteria_match(given_labels: Iterable[str], dest_labels: 
     dest_labels = list(dest_labels) # we need to mutate for internal processing
     for i, given_label in enumerate(given_labels):
         screen = ConsoleFrame(prompt_header=True)
-        screen.print_header(f"Rubric criteria matching ({i}/{len(given_labels)})")
+        screen.print_header(f"Rubric criteria matching ({i + 1}/{len(given_labels)})")
         start_idx = 1
         screen.print_enumerated(dest_labels, start_idx)
         screen.display_complete()
