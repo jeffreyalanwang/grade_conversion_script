@@ -4,7 +4,7 @@ from typing import Final, override
 from nicegui import ui
 
 from grade_conversion_script.gui.flow_components.select_input.common \
-    import InputConstructorInfo, InputConstructorElement, InputDependencies
+    import InputPanelInfo, InputConstructorElement, InputDependencies
 from grade_conversion_script.gui.state_components.constructor_element import \
     NotReadyException
 from grade_conversion_script.input import AttendanceTrueFalse
@@ -39,7 +39,7 @@ class AttendanceTrueFalseHandlerOptions(InputConstructorElement[AttendanceTrueFa
             )
         return generate_handler
 
-handler: Final = InputConstructorInfo(
+handler: Final = InputPanelInfo(
     title = 'Attendance (true/false)',
     options_page = AttendanceTrueFalseHandlerOptions
 )

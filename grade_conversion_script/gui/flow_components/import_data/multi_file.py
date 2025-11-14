@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from types import NoneType
-from typing import Callable, NamedTuple, Final, cast
+from typing import Callable, NamedTuple, Final
 
 from nicegui import html as ui_html, ui, Event, events
 from nicegui.elements.tabs import TabPanel
@@ -12,7 +12,6 @@ from grade_conversion_script.gui.flow_components.import_data.single_file import 
 from grade_conversion_script.gui.flow_components.import_data.tab_util import \
     TabOptionButton
 from grade_conversion_script.gui.state_components import UxFlow as UxFlow
-from grade_conversion_script.util.custom_types import NoChange
 from grade_conversion_script.util.funcs import set_light_dark, index_where, \
     tuple_insert, tuple_pop, tuple_replace, unique_readable_html_safe
 
@@ -99,12 +98,12 @@ class ImportDataFlowStep(
             with ui.tab_panels(keep_alive=True) as tab_panels:
                 self.tab_panel_view: Final = (
                     tab_panels
-                    .classes(add='fit grow')
+                    .classes(add='grow')
                 )
             with ui.element('q-toolbar') as toolbar:
                 _ = (
                     toolbar
-                    .classes('q-pa-none')
+                    .classes('p-0')
                     .style(add='min-height: 0')
                     .style(add='border-top: 1px solid rgba(0,0,0,0.12);')
                 )
@@ -193,16 +192,15 @@ class ImportDataFlowStep(
         return self._import_data
     @import_data.setter
     def import_data(self, value: Sequence[DataImportEntry | None]):
-        if (
+        if ( # if old value and new value are the same for every element
             len(value) == len(self._import_data)
             and all(
                 None == data1 == data2
                 or (
-                    data1 is not None and data2 is not None
-                    and data1.df.equals(data2.df)
-                )
-                for data1, data2 in zip(value, self._import_data)
-            )
+                    data1 is not None
+                    and data2 is not None
+                    and data1.df.equals(data2.df))
+                for data1, data2 in zip(value, self._import_data))
         ):
             return
         value = tuple(value)
@@ -212,15 +210,11 @@ class ImportDataFlowStep(
         self._import_data = value
         self.on_import_data_changed.emit(value)
 
-        match (len(value) != 0 and None not in value):
-            case True:
-                state_val = UxFlow.State.CONTINUE_READY
-            case False if (self.state >= UxFlow.State.CONTINUE_READY):
-                state_val = UxFlow.State.START_READY
-            case _:
-                state_val = NoChange
-        if state_val is not NoChange:
-            cast(UxFlow.FlowStepElement, self).state = state_val
+        continue_ready = len(value) > 0 and None not in value
+        if continue_ready:
+            self.data = value # sets self.state
+        else:
+            self.data = None
 
     new_tab_label: Final = "Upload"
     tab_name_prefix: Final = "import-tab-"
@@ -256,7 +250,7 @@ class ImportDataFlowStep(
 
         with self.tab_panel_view:
             with ui.tab_panel(tab_element).classes(add='fit q-pa-none') as panel:
-                tab_panel = panel
+                tab_panel = panel.classes('p-0')
 
                 import_data_element = ImportDataSingleFile(
                     internal_flip_button=False,
@@ -391,8 +385,7 @@ class ImportDataFlowStep(
             parent_data_loc = index_where(
                 lambda tab_record:
                     element is tab_record.import_data_element,
-                self.tabs
-            )
+                self.tabs,)
             self.import_data = tuple_replace(parent_data_loc, data, self.import_data)
 
             tab = self.tabs[parent_data_loc].tab
@@ -414,7 +407,7 @@ class ImportDataFlowStep(
         # if somehow called, its call to
         # parent_data_loc will raise error.
 
-_ = ImportDataFlowStep.default_style(add="min-width: 20rem; min-height: 20rem;")
+_ = ImportDataFlowStep.default_style(add="min-width: 10rem; min-height: 10rem;")
 
 if __name__ in {"__main__", "__mp_main__"}:
     import logging, sys

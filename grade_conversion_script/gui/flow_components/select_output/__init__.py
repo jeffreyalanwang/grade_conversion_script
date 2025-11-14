@@ -1,5 +1,5 @@
-from .select_output_format import OutputFormatSelector
+from .select_output_format import OutputFormatSelectStep
 
 __all__ = [
-    "OutputFormatSelector",
+    "OutputFormatSelectStep",
 ]

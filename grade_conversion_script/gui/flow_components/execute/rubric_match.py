@@ -4,13 +4,16 @@ from nicegui import ui
 
 from grade_conversion_script.gui.base_components.dual_list_match \
     import DualListMatch
+from grade_conversion_script.gui.flow_components.pane_header import \
+    ClientSideHeaderElement
 from grade_conversion_script.gui.state_components import UxFlow
 
 
-class RubricCriteriaMatchElement(
+class RubricCriteriaMatchElement(  # pyright: ignore[reportUnsafeMultipleInheritance]
     UxFlow.FlowStepDataElement[
         dict[str, str]
-    ]
+    ],
+    ClientSideHeaderElement,
 ):
     def __init__(
         self,
@@ -20,44 +23,37 @@ class RubricCriteriaMatchElement(
         **kwargs,
     ):
         ''' `given_labels` are matched injectively to `dest_labels`. '''
-
         super().__init__(
             *args,
-            initial_state = UxFlow.State.START_READY,
-            **kwargs,
-        )
+            header_text='Match rubric criteria (cross-file)',
+            initial_state=UxFlow.State.START_READY,
+            **kwargs, )
+        _ = self.content.classes('q-pa-md')
 
-        with self:
-            with ui.card_section():
-                _ = ui.label('Match rubric criteria (cross-file)')
-                _ = ui.space()
-                done_button = (
-                    ui.button(
-                        icon = 'check',
-                        text = 'Done',
-                        color = 'accent',
-                    )
-                    .props('outline')
+        with self.header_bar:
+            _ = ui.space()
+            done_button = (
+                ui.button(
+                    text = 'Done',
+                    color = 'accent',
                 )
-                _ = ui.separator()
+                .props('outline icon-right="check"'))
+        with self:
             content = DualListMatch(
                 left = sorted(given_labels),
                 right = sorted(dest_labels),
-                discardable = False,
-            )
+                discardable = False,)
 
         done_button.disable()
 
         content.on_any_changed.subscribe(
-            lambda left_remaining, _, matches:
+            lambda left_remaining, right_remaining, matches:
             self.handle_content_value_changed(
                 bool(left_remaining),
                 done_button
-            ),
-        )
+            ),)
         _ = done_button.on_click(
-            lambda: self.handle_done_button(content),
-        )
+            lambda: self.handle_done_button(content),)
 
     def handle_content_value_changed(
         self,
@@ -71,4 +67,4 @@ class RubricCriteriaMatchElement(
         content: DualListMatch,
     ):
         self.data = dict(content.value)
-        self.state = UxFlow.State.CONTINUE_REQUIRED
+        self.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED)

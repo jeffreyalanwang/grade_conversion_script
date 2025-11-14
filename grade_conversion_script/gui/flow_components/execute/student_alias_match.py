@@ -5,13 +5,16 @@ from nicegui import ui
 
 from grade_conversion_script.gui.base_components.dual_list_match \
     import DualListMatch
+from grade_conversion_script.gui.flow_components.pane_header import \
+    ClientSideHeaderElement
 from grade_conversion_script.gui.state_components import UxFlow
 
 
-class StudentAliasMatchElement(
+class StudentAliasMatchElement(  # pyright: ignore[reportUnsafeMultipleInheritance]
     UxFlow.FlowStepDataElement[
         dict[str, str]
-    ]
+    ],
+    ClientSideHeaderElement,
 ):
     def __init__(
         self,
@@ -20,51 +23,38 @@ class StudentAliasMatchElement(
         *args,
         **kwargs,
     ):
-        super().__init__(*args, initial_state=UxFlow.State.START_READY, **kwargs)
-        self.flip: Final[bool] = len(user) > len(dest)
+        super().__init__(
+            *args,
+            header_text='Match student names (cross-file)',
+            initial_state=UxFlow.State.START_READY,
+            **kwargs,)
+        self.flip: Final[bool] = len(user) > len(dest) # show shorter list on left
 
-        with self:
-            with ui.card_section():
-                _ = ui.label('Match students (cross-file)')
-                _ = ui.space()
-                done_button = (
-                    ui.button(
-                        icon = 'check',
-                        text = 'Done',
-                        color = 'accent',
-                    )
-                    .props('outline')
+        _ = self.content.classes('q-pa-md')
+
+        with self.header_bar:
+            _ = ui.space()
+            done_button = (
+                ui.button(
+                    text = 'Done',
+                    color = 'accent',
                 )
-            _ = ui.separator()
+                .props('outline icon-right="check"'))
+        with self:
             content = DualListMatch(
                 left = sorted(user if not self.flip else dest),
                 right = sorted(dest if not self.flip else user),
-                discardable = True,
-            )
+                discardable = True,)
 
-        done_button.disable()
-
-        content.on_value_changed.subscribe(
-            lambda value:
-            self.handle_content_value_changed(value, done_button),
-        )
         _ = done_button.on_click(
-            lambda: self.handle_done_button(content),
-        )
-
-    def handle_content_value_changed(
-        self,
-        value: Collection[tuple[str, str]],
-        done_button: ui.button,
-    ):
-        done_button.set_enabled(len(value) > 0)
+            lambda: self.handle_done_button(content),)
 
     def handle_done_button(
         self,
         content: DualListMatch,
     ):
         self.data = self._pairs_to_dict(content.value, self.flip)
-        self.state = UxFlow.State.CONTINUE_REQUIRED
+        self.set_state_immediately(UxFlow.State.CONTINUE_REQUIRED)
 
     def _pairs_to_dict[T1, T2](
         self,

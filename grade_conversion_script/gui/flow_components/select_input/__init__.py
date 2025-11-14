@@ -1,5 +1,5 @@
-from .select_input_handler import InputHandlerSelector
+from .select_input_handler import InputHandlerSelectStep
 
 __all__ = [
-    "InputHandlerSelector",
+    "InputHandlerSelectStep",
 ]

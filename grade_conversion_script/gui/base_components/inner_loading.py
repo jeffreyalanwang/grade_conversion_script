@@ -2,11 +2,11 @@ from contextlib import contextmanager
 from enum import IntEnum
 from typing import Final, overload
 
-from nicegui import ui
 from nicegui.element import Element
 from nicegui.elements.spinner import SpinnerTypes
 
 from grade_conversion_script.util.custom_types import NoChange, NoChangeFlag
+
 
 class QInnerLoading(Element):
     def __init__(
@@ -142,7 +142,7 @@ class InnerLoadingContainer(Element):
         if after is not None:
             self.after.set_visibility(after)
 
-_ = InnerLoadingContainer.default_style(add='min-width: 200px; min-height: 200px;')
+_ = InnerLoadingContainer.default_style(add='min-width: 100px; min-height: 100px;')
 _ = InnerLoadingContainer.default_classes(add='block absolute-full')
 
 if __name__ in {"__main__", "__mp_main__"}:

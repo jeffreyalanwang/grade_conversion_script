@@ -8,7 +8,7 @@ import pandas as pd
 from nicegui.element import Element
 from pandas._typing import Scalar as pd_scalar
 
-from grade_conversion_script.util.AliasRecord import AliasRecord
+from grade_conversion_script.util.alias_record import AliasRecord
 from grade_conversion_script.util.custom_types import \
     Matcher  # pyright: ignore[reportWildcardImportFromLibrary]
 
@@ -24,6 +24,8 @@ def multifilter[T](iterable: Iterable[T], *funcs: Callable[[T], bool]) -> Iterab
         )
     return filter(combined_filter, iterable)
 
+class ItemNotFound(ValueError):
+    pass
 def index_where[T](filter: Callable[[T], bool], iterable: Iterable[T]) -> int:
     '''
     Return index of first item in `iterable`
@@ -39,7 +41,7 @@ def index_where[T](filter: Callable[[T], bool], iterable: Iterable[T]) -> int:
     try:
         parent_data_loc = next(matching_indexes)
     except StopIteration:
-        raise ValueError(f"No matching item found in {iterable}.")
+        raise ItemNotFound(f"No matching item found in {iterable}.")
     else:
         return parent_data_loc
 
@@ -125,6 +127,10 @@ class DebouncedRunner:
         ''' min_interval: seconds, minimum delay before a task is run '''
         self.min_interval = min_interval
         self.current_task: asyncio.Task[None] | None = None
+
+    def cancel_all(self):
+        if self.current_task is not None:
+            _ = self.current_task.cancel()
 
     def __call__(self, task: Callable[[], None] | Awaitable[None]):
         '''
@@ -233,8 +239,27 @@ def kebab_case(s: str) -> str:
 # endregion HTML/GUI
 # region Typing
 
+
+@overload
+def all_truthy[T](collection: Sequence[T | None]) -> TypeGuard[Sequence[T]]:
+    ...
+@overload
+def all_truthy[T](collection: Collection[T | None]) -> TypeGuard[Collection[T]]:
+    ...
+def all_truthy[T](collection: Collection[T | None]) -> TypeGuard[Collection[T]]:
+    for item in collection:
+         if not item:
+             return False
+    return True
+
+def all_isinstance[T](collection: Collection[Any], item_type: type[T]) -> TypeGuard[Collection[T]]:
+    for item in collection:
+        if not isinstance(item, item_type):
+            return False
+    return True
+
 def add_tuples[T: tuple[Any, ...]](a: T, b: T) -> T:
-    ''' Add two tuples element-wise. '''
+    ''' Add two tuples element-wise, compatibly with type-checkers. '''
     sum_elements = (
         element_a + element_b
         for element_a, element_b in zip(a, b)
@@ -288,7 +313,7 @@ def contains_row_for(contains_values: pd.DataFrame | pd.Series, at_index_in: pd.
 
 def join_str_cols(sep: str, df: pd.DataFrame) -> pd.Series:
     ''' Joins on `sep` but drops NaNs. '''
-    df.replace('', pd.NA, inplace=True)
+    df = df.replace('', pd.NA)
     rows = df.iterrows()
     jagged_rows = (
         (index, series.dropna())

@@ -30,3 +30,16 @@ class CollapseTransition(Element, component='CollapseTransition.vue'):
         # runs when Visibility().visibility is set.
         # replaces the original behavior (setting "hidden" prop)
         _ = self.run_method('setVisible', visible)
+
+if __name__ in {"__main__", "__mp_main__"}:
+    from nicegui import ui
+    with ui.row():
+        element = CollapseTransition()
+
+        with element:
+            ui.label('collapse transition')
+
+        ui.button('hello', on_click=lambda: element.set_visibility(not
+        element.visible))
+
+    ui.run(native=False)

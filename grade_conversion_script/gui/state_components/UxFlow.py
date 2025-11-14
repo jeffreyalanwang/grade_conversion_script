@@ -1,3 +1,4 @@
+import logging
 from contextlib import suppress
 from enum import Enum, IntEnum
 from itertools import chain
@@ -9,6 +10,8 @@ from nicegui.element import Element
 from nicegui.elements.mixins.disableable_element import DisableableElement
 
 from grade_conversion_script.util.funcs import DebouncedRunner
+
+logger = logging.getLogger(__name__)
 
 NO_VISUAL_DISABLE_CLASS = 'visual_state_no_disable'
 '''
@@ -25,6 +28,37 @@ class State(IntEnum):
     START_READY = 1
     CONTINUE_READY = 2
     CONTINUE_REQUIRED = 3
+
+    @property
+    def allows_start(self) -> bool:
+        assert self < State.CONTINUE_REQUIRED, "Ambiguous case"
+        return self >= State.START_READY
+
+    @property
+    def allows_continue(self) -> bool:
+        return self >= State.CONTINUE_READY
+
+    @property
+    def requires_continue(self) -> bool:
+        return self == State.CONTINUE_REQUIRED
+
+    def with_start_allowed(self, allowed: bool):
+        if allowed:
+            return max(self, State.START_READY)
+        else:
+            return State.NOT_START_READY
+
+    def with_continue_allowed(self, allowed: bool):
+        if allowed:
+            return max(self, State.CONTINUE_READY)
+        else:
+            return min(self, State.START_READY)
+
+    def with_continue_required(self, required: bool):
+        if required:
+            return State.CONTINUE_REQUIRED
+        else:
+            return min(self, State.CONTINUE_READY)
 
 class VisualState(Enum):
     NOT_READY = 'flow-step-not-ready'
@@ -74,14 +108,12 @@ class VisualState(Enum):
     def set_on(self, element: ui.element):
         _ = element.classes(add=self.value)
         if self.disables_elements:
-            to_disable = chain(
-                (element,) if isinstance(element, DisableableElement) else (),
-                ElementFilter(
-                    kind=DisableableElement,
-                    local_scope=True
+            with element:
+                to_disable = chain(
+                    (element,) if isinstance(element, DisableableElement) else (),
+                    ElementFilter(kind=DisableableElement)
+                        .within(instance=element),
                 )
-                .within(instance=element),
-            )
             to_disable = filter(
                 lambda e: NO_VISUAL_DISABLE_CLASS not in e.classes,
                 to_disable
@@ -93,16 +125,17 @@ class VisualState(Enum):
 
     def clear_from(self, element: ui.element):
         if self.value not in element.classes:
-            raise PropertyNotSetException()
+            raise PropertyNotSetException(
+                f'Error removing {self} from element of type {type(element)}.'
+                f' Element classes: {list(element.classes)}')
         _ = element.classes(remove=self.value)
         if self.disables_elements:
-            to_enable = chain(
-                (element,) if isinstance(element, DisableableElement) else (),
-                ElementFilter(
-                    kind=DisableableElement,
-                    local_scope=True
-                ).within(instance=element),
-            )
+            with element:
+                to_enable = chain(
+                    (element,) if isinstance(element, DisableableElement) else (),
+                    ElementFilter(kind=DisableableElement)
+                        .within(instance=element),
+                )
             disable_sentinel = self.disabled_sentinel_class_for(element)
             to_enable = filter(
                 lambda e: disable_sentinel in e.classes,
@@ -133,13 +166,13 @@ class VisualState(Enum):
 class FlowStepElement(Element):
     def __init__(self, initial_state: State = State.NOT_START_READY, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._elements_on_enter: Final = list[set[Element]]()
 
         # Set HTML attributes
         _ = self.classes(add='flow-step')
 
         # Make events available
         self.on_state_changed: Final = Event[State]()
-        self.on_complete_changed: Final = Event[bool]()
 
         # Initialize internal state
         self._state: State | None = None
@@ -147,30 +180,47 @@ class FlowStepElement(Element):
         self._complete: bool | None = None
 
         # Allow setting of state in a debounced manner
-        self._state_debouncer = DebouncedRunner(2)
+        self._state_debouncer = DebouncedRunner(.5)
 
         # Set actual state, immediately triggering internal callbacks
         self.set_state_immediately(initial_state)
 
+    def __enter__(self):
+        self_obj = super().__enter__()
+        self._elements_on_enter.append(set(
+            ElementFilter(kind=Element).within(instance=self)
+        ))
+        return self_obj
+
     def __exit__(self, *_):
-        # apply visual state to any elements that may have been added
+        elements_on_enter = self._elements_on_enter.pop()
+        elements_on_exit = set(
+            ElementFilter(kind=Element).within(instance=self)
+        )
         super().__exit__(*_)
-        self.visual_state.set_on(self)
+
+        # apply visual state to any elements that may have been added
+        if elements_on_enter != elements_on_exit:
+            self.visual_state.set_on(self)
 
     @property
     def state(self) -> State:
         assert self._state is not None
         return self._state
-    @state.setter
-    def state(self, value: State):
-        if value == self._state:
-            return
-        self._state_debouncer(lambda: self.set_state_immediately(value))
+
     def set_state_immediately(self, value: State):
+        self._state_debouncer.cancel_all()
         self._state = value
         self.on_state_changed.emit(value)
         self.visual_state = VisualState.from_flow_state(value)
-        self.complete = self.state >= State.CONTINUE_READY
+
+    def set_state_debounced(self, value: State):
+        if value == self._state:
+            return
+        logger.info(
+            f'Flow step state for {str(self).splitlines()[0]}'
+            f' changed from {self._state} to {value}')
+        self._state_debouncer(lambda: self.set_state_immediately(value))
 
     @property
     def visual_state(self) -> VisualState:
@@ -185,36 +235,21 @@ class FlowStepElement(Element):
         self._visual_state = value
         value.set_on(self)
 
-    @property
-    def ready(self) -> bool:
-        ''' Whether the user is ready to begin to this step. '''
-        return self.state >= State.START_READY and not self.complete
-
-    @property
-    def complete(self) -> bool:
-        ''' Whether the user is done with this step. '''
-        assert self._complete is not None
-        return self._complete
-    @complete.setter
-    def complete(self, value: bool):
-        if value == self._complete:
-            return
-        self._complete = value
-        self.on_complete_changed.emit(value)
-
 class FlowStepInputElement[T](FlowStepElement):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._inputs: T | None = None
-        self.on_inputs_changed: Final = Event[T]()
+        self.on_inputs_changed: Final = Event[T | None]()
 
     @property
-    def inputs(self) -> T:
-        assert self._inputs is not None
+    def inputs(self) -> T | None:
+        assert self._inputs is not None, f"Inputs not set (current state is {self.state.name})"
         return self._inputs
     @inputs.setter
-    def inputs(self, values: T):
+    def inputs(self, values: T | None):
+        if values == self._inputs:
+            return
         self._inputs = values
         self.on_inputs_changed.emit(values)
 
@@ -241,9 +276,11 @@ class FlowStepDataElement[T](FlowStepElement):
         self._on_data_changed.emit(value)
 
         if value is None:
-            self.state = min(self.state, State.START_READY)
+            self.set_state_debounced(
+                self.state.with_continue_allowed(False),)
         else: # we have generated a value
-            self.state = max(self.state, State.CONTINUE_READY)
+            self.set_state_debounced(
+                self.state.with_continue_allowed(True),)
 
     @property
     def on_data_changed(self) -> Event[T | None ]:

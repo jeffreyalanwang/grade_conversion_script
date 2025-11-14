@@ -15,7 +15,7 @@ handlers = (
     attendance_true_false,
 )
 
-class InputHandlerSelector(
+class InputHandlerSelectStep(
     UxFlow.FlowStepDataElement[
         PartialInputConstructor[Any]
     ]
@@ -29,7 +29,7 @@ class InputHandlerSelector(
         super().__init__(initial_state, *args, **kwargs)
 
         with self.classes('w-full'):
-            with ui.column(align_items='stretch'):
+            with ui.column(align_items='stretch').classes('gap-0'):
 
                 self.input_handler_selector: Final = ui.radio({
                     # name (unique ID) : text
@@ -38,7 +38,11 @@ class InputHandlerSelector(
                 }).props('inline')
 
                 with ui.tab_panels(keep_alive=False) as option_panels:
-                    _ = option_panels.classes(add='fit grow')
+                    _ = (
+                        option_panels
+                        .classes(add='fit grow')
+                        .props('transition-prev="fade" transition-next="fade"')
+                    )
 
                     self.handler_pages: Final = dict[str, InputConstructorElement[Any]]()
                     for input_handler_info in handlers:
@@ -54,11 +58,10 @@ class InputHandlerSelector(
         # Child generated new handler object
         for name, handler_page in self.handler_pages.items():
             handler_page.on_object_changed.subscribe(
-                lambda new_data:
+                lambda new_data, page_name=name:
                 self.new_child_data_callback(
-                    name,
-                    new_data
-                )
+                    page_name, new_data
+                ),
             )
 
         # Tab switch -> trigger child page to re-calculate its handler object
@@ -96,7 +99,7 @@ if __name__ in {"__main__", "__mp_main__"}:
     logging.basicConfig(level=logging.INFO,stream=sys.stdout)
 
     with ui.row().style('min-width: 700px'):
-        step_element = InputHandlerSelector(initial_state=UxFlow.State.START_READY)
+        step_element = InputHandlerSelectStep(initial_state=UxFlow.State.START_READY)
 
     step_element.on_state_changed.subscribe(lambda state: ui.notify(f'New state: {state.name}'))
 

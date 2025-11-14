@@ -32,7 +32,7 @@ class InputConstructorElement[T: InputHandler](
 ):
     pass
 
-class InputConstructorInfo[T: InputHandler](
+class InputPanelInfo[T: InputHandler](
     StaticPanelInfo[InputConstructorElement[T]]
 ):
     pass

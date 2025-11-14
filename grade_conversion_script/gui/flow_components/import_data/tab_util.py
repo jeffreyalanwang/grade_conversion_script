@@ -1,36 +1,14 @@
-from contextlib import contextmanager
 from typing import Literal
 
 from nicegui import ui
 from nicegui.events import Handler, ClickEventArguments
 
+from grade_conversion_script.gui.base_components.click_stop import ClickStop
 from grade_conversion_script.gui.base_components.collapse_transition import \
     CollapseTransition
 
 _ = ui.button.default_props(add=f'ripple={ {'early': True} }')
 
-@contextmanager
-def ClickStop():
-    '''
-    Prevents click-events from propagating to parent elements
-    (useful to stop ripple effects from duplicating).
-    '''
-
-    js_null_f = '() => {}'
-
-    with ui.element() as click_event_no_propogate:
-        _ = (
-            click_event_no_propogate
-
-            # prevent propogation of ripple to tab button
-            .on('pointerdown.stop', js_handler=js_null_f).on(
-                'keydown.stop', js_handler=js_null_f).on('mousedown.stop', js_handler=js_null_f)
-            .on('pointerup.stop', js_handler=js_null_f).on('click.stop', js_handler=js_null_f).on(
-                'keyup.stop', js_handler=js_null_f).on('mouseup.stop', js_handler=js_null_f)
-            .on('mouseenter', js_handler=js_null_f)
-            .on('mouseleave', js_handler=js_null_f)
-        )
-        yield click_event_no_propogate
 
 def TabOptionButton(
     icon: str,

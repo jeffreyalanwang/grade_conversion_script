@@ -3,8 +3,8 @@ from typing import Final, override
 from nicegui import ui
 
 from grade_conversion_script.gui.flow_components.select_output.common \
-    import OutputConstructorElement, OutputConstructorInfo, \
-    PartialOutputConstructor
+    import OutputConstructorElement, OutputPanelInfo, \
+    PartialOutputConstructor, file_safe_timestamp
 from grade_conversion_script.output import AcrOutputFormat
 
 
@@ -26,15 +26,18 @@ class AutoCanvasRubricFormatOptions(OutputConstructorElement[AcrOutputFormat]):
             student_aliases=dependencies.student_aliases
         )
 
-handler: Final = OutputConstructorInfo(
+handler: Final = OutputPanelInfo(
     title = 'Auto Canvas Rubric (browser extension)',
-    options_page = AutoCanvasRubricFormatOptions
+    options_page = AutoCanvasRubricFormatOptions,
+    make_filename=lambda: f'acr_import_{file_safe_timestamp()}.csv',
+    media_type='text/csv',
 )
 
 if __name__ in {"__main__", "__mp_main__"}:
     from grade_conversion_script.util import AliasRecord
     from grade_conversion_script.gui.flow_components.select_output.common \
         import OutputDependencies
+    from grade_conversion_script.util.tui import interactive_alias_match, interactive_rubric_criteria_match
     import logging, sys
     logging.basicConfig(level=logging.INFO,stream=sys.stdout)
 
@@ -48,7 +51,7 @@ if __name__ in {"__main__", "__mp_main__"}:
 
     logging.info(str(element.last_generated))
     logging.info(str(
-        element.last_generated(OutputDependencies(AliasRecord())))
+        element.last_generated(OutputDependencies(AliasRecord(), interactive_alias_match, interactive_rubric_criteria_match)))
         if element.last_generated else None
     )
 

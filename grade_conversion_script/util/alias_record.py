@@ -1,10 +1,12 @@
 from itertools import chain
+from typing import *  # pyright: ignore[reportWildcardImportFromLibrary]
+
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
 
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
-from grade_conversion_script.util.custom_types import IndexFlag, AnyById, IterableOfStr
+from grade_conversion_script.util.custom_types import IndexFlag, AnyById, \
+    IterableOfStr
 
 python_id = id
 
@@ -36,11 +38,11 @@ class AliasRecord:
 
     def __str__(self):
         # improve readability
-        list_dict = {
+        dict_of_lists = {
             k : sorted(v)
             for k, v in self._dict.items()
         }
-        return str(list_dict)
+        return str(dict_of_lists)
 
     def __contains__(self, item) -> bool:
         if item in self._dict.keys():

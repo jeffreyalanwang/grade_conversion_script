@@ -105,26 +105,23 @@ class ImportDataSingleFile(Element):
         self._import_data: DataImportEntry | None = None
         self.on_import_data_changed: Final = Event[DataImportEntry | None]()
 
-        with ((self)):
+        with self:
             with InnerLoadingContainer(spinner_type='bars') as container:
                 self.page_manager: Final = container
                 self.upload_page: Final = container.before
                 self.loading_overlay: Final = container.loading_overlay
                 self.data_page: Final = container.after
 
-                with ui.page_sticky(position='bottom-right', x_offset=4, y_offset=4):
+                with ui.element().classes('absolute bottom-4 right-4'):
                     flip_button = (
                         ui.button(
                             icon='swap_horiz',
                             on_click=self.tab_view_toggle,
                         )
-                        .props('fab')
+                        .props('fab-mini')
+                        .classes('h-2 w-2')
                     )
                     flip_button.set_visibility(False)
-                    self.on_import_data_changed.subscribe(
-                        lambda new_data_val:
-                            flip_button.set_visibility(new_data_val is not None)
-                    )
 
         # Build initial element (uploader)
 
@@ -155,8 +152,7 @@ class ImportDataSingleFile(Element):
                             label="Import CSV file",
                             auto_upload=True,
                         )
-                        .props('accept="text/csv"')
-                    )
+                        .props('accept="text/csv"'))
 
         # Uploader style
         (
@@ -164,8 +160,7 @@ class ImportDataSingleFile(Element):
             .props(add='flat square')
             .classes(add='column reverse')
             .style(add='width: min(100%, 320px);')
-            .set_visibility(False)
-        )
+            .set_visibility(False))
         set_light_dark(
             self.uploader,
             lambda uploader, tcolor: (
@@ -176,6 +171,12 @@ class ImportDataSingleFile(Element):
             ('black',),
             ('white',)
         )
+
+        # State
+        if internal_flip_button:
+            self.on_import_data_changed.subscribe(
+                lambda new_data_val:
+                flip_button.set_visibility(new_data_val is not None),)
 
         # Display uploader
         self.current_page = self.Page.UPLOAD
@@ -250,8 +251,8 @@ class ImportDataSingleFile(Element):
             # Clarify uploader history screen
             self.uploader_history_msg.set_visibility(True)
 
-_ = ImportDataSingleFile.default_style(add='min-height: 16rem; min-width: 16rem;')
-_ = ImportDataSingleFile.default_classes(add='fit')
+_ = ImportDataSingleFile.default_style(add='min-height: 8rem; min-width: 8rem;')
+_ = ImportDataSingleFile.default_classes(add='fit relative')
 
 if __name__ in {"__main__", "__mp_main__"}:
     import logging, sys

@@ -1,13 +1,16 @@
 from typing import no_type_check
-import pytest
+
 import pandas as pd
+import pytest
 from pandas.testing import assert_series_equal
-from grade_conversion_script.util.AliasRecord import (
+
+from grade_conversion_script.util.alias_record import (
     AliasRecord,
     IdNotFoundException,
     AliasNotFoundException
 )
 from grade_conversion_script.util.custom_types import IndexFlag
+
 
 class TestAliasRecordExceptions:
     """Test custom exception classes."""

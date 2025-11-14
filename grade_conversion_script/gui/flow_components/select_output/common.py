@@ -1,6 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass
-from typing import Protocol
+from datetime import datetime
+from typing import Callable, Protocol
 
 from grade_conversion_script.gui.state_components.constructor_element import \
     PartialObject, PartialObjectConstructingElement, ConstructorDependencies
@@ -8,6 +9,9 @@ from grade_conversion_script.output import OutputFormat
 from grade_conversion_script.util import StaticPanelInfo, AliasRecord
 from grade_conversion_script.util.custom_types import Matcher, RubricMatcher
 
+
+def file_safe_timestamp() -> str:
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 @dataclass(frozen=True)
 class OutputDependencies(ConstructorDependencies):
@@ -34,7 +38,10 @@ class OutputConstructorElement[T: OutputFormat](
 ):
     pass
 
-class OutputConstructorInfo[T: OutputFormat](
+@dataclass
+class OutputPanelInfo[T: OutputFormat](
     StaticPanelInfo[OutputConstructorElement[T]]
 ):
-    pass
+    ''' Each tab panel exports its class, plus data about itself. '''
+    make_filename: Callable[[], str]
+    media_type: str

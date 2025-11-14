@@ -1,14 +1,16 @@
-import pandas as pd
-
-from typing import * # pyright: ignore[reportWildcardImportFromLibrary]
 import numbers as num
+from typing import *  # pyright: ignore[reportWildcardImportFromLibrary]
+
+import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
-from grade_conversion_script.util.custom_types import SisId, StudentPtsById, BoolsById
 
 from grade_conversion_script.util import AliasRecord
+from grade_conversion_script.util.custom_types import SisId, StudentPtsById, \
+    BoolsById
 from grade_conversion_script.util.funcs import pd_scalar, join_str_cols
 from .base import InputHandler, bool_to_pts
+
 
 class PollEvCheck(Protocol):
     '''
@@ -122,8 +124,8 @@ class AttendancePollEv(InputHandler):
         assert isinstance(attendance, pd.Series)
 
         # drop NaNs
-        student_rows['First name'].replace('', pd.NA, inplace=True)
-        student_rows['Last name'].replace('', pd.NA, inplace=True)
+        student_rows.loc[:,'First name'] = student_rows['First name'].replace('', pd.NA)
+        student_rows.loc[:,'Last name'] = student_rows['Last name'].replace('', pd.NA)
         to_drop = student_rows['First name'].isna() & student_rows['Last name'].isna()
         attendance = attendance[~to_drop]
 

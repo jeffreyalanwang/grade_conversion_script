@@ -6,8 +6,8 @@ from nicegui import ui
 from grade_conversion_script.gui.flow_components.import_data.single_file import \
     ImportDataSingleFile
 from grade_conversion_script.gui.flow_components.select_output.common \
-    import OutputConstructorElement, OutputConstructorInfo, \
-    PartialOutputConstructor
+    import OutputConstructorElement, OutputPanelInfo, \
+    PartialOutputConstructor, file_safe_timestamp
 from grade_conversion_script.gui.state_components.constructor_element import \
     NotReadyException
 from grade_conversion_script.output import CanvasGradebookOutputFormat
@@ -22,15 +22,23 @@ class CanvasGradebookFormatOptions(OutputConstructorElement[CanvasGradebookOutpu
         self.gradebook_csv: pd.DataFrame | None = None
         self.assignment_header: str | None = None
 
-        with self:
-            with ui.row():
-                self.import_data_element: Final = (
-                    ImportDataSingleFile(
-                        uploader_vertical_align='center'
+        with self.classes('fit'):
+            with ui.row(wrap=False).classes('fit'):
+                with ui.column().classes('grow fit'):
+                    self.import_data_element: Final = (
+                        ImportDataSingleFile(
+                            uploader_vertical_align='center'
+                        )
+                        .classes('grow fit')
                     )
-                    .classes('grow')
-                )
-                with ui.column(align_items='stretch'):
+                with ui.column(align_items='stretch').classes('max-h-full overflow-auto'):
+
+                    self.select_assignment_header_element: Final = ui.select(
+                        options=[],
+                        label='Assignment',
+                        multiple=False,
+                        with_input=True, )
+                    self.select_assignment_header_element.disable()
 
                     self.sum_option_element: Final = (
                         ui.checkbox(
@@ -56,16 +64,7 @@ class CanvasGradebookFormatOptions(OutputConstructorElement[CanvasGradebookOutpu
                         ui.checkbox(
                             text='Warn which students have an existing grade',
                             value=False
-                        )
-                    )
-
-                    self.select_assignment_header_element: Final = ui.select(
-                        options=[],
-                        label='Assignment',
-                        multiple=False,
-                        with_input=True,
-                    )
-                    self.select_assignment_header_element.disable()
+                        ))
 
         self.import_data_element.on_import_data_changed.subscribe(
             lambda data: self.handle_csv_change(data.df if data else None)
@@ -126,15 +125,19 @@ class CanvasGradebookFormatOptions(OutputConstructorElement[CanvasGradebookOutpu
             warn_existing=cast(bool, self.warn_existing_element.value),
         )
 
-handler: Final = OutputConstructorInfo(
+handler: Final = OutputPanelInfo(
     title = 'Canvas Gradebook',
-    options_page = CanvasGradebookFormatOptions
+    options_page = CanvasGradebookFormatOptions,
+    make_filename=lambda: f'gradebook_{file_safe_timestamp()}.csv',
+    media_type='text/csv',
 )
 
 if __name__ in {"__main__", "__mp_main__"}:
     from grade_conversion_script.util import AliasRecord
     from grade_conversion_script.gui.flow_components.select_output.common \
         import OutputDependencies
+    from grade_conversion_script.util.tui \
+        import interactive_alias_match, interactive_rubric_criteria_match
     import logging, sys
     logging.basicConfig(level=logging.INFO,stream=sys.stdout)
 
@@ -142,7 +145,7 @@ if __name__ in {"__main__", "__mp_main__"}:
         element = CanvasGradebookFormatOptions()
 
     def report_new_constructor(new_constructor):
-        obj = new_constructor(OutputDependencies(AliasRecord()))
+        obj = new_constructor(OutputDependencies(AliasRecord(), interactive_alias_match, interactive_rubric_criteria_match))
         ui.notify(f'New constructor generated: {new_constructor}')
         logging.info(f'Generates object: {obj.__dict__ if obj else None}')
     element.on_object_changed.subscribe(report_new_constructor)
