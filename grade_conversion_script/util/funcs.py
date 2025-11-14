@@ -300,13 +300,17 @@ def join_str_cols(sep: str, df: pd.DataFrame) -> pd.Series:
     )
     return pd.Series(joined_rows)
 
-
-def reindex_to[T: pd.Series | pd.DataFrame](to_realign: T, target_ids: pd.Series) -> T:
+@overload
+def reindex_to(to_realign: pd.Series, target_ids: pd.Series) -> pd.Series:
+    ...
+@overload
+def reindex_to(to_realign: pd.DataFrame, target_ids: pd.Series) -> pd.DataFrame:
+    ...
+def reindex_to(to_realign: pd.Series | pd.DataFrame, target_ids: pd.Series) -> pd.Series | pd.DataFrame:
     '''
     Realign a Series or DataFrame indexed by some ID
-    to match another DataFrame whose IDs per row are known.
-
-    Values in `to_realign` may be dropped.
+    to match another DataFrame, with a different index but
+    whose rows each have known IDs.
 
     Args:
     * to_realign:
@@ -315,23 +319,38 @@ def reindex_to[T: pd.Series | pd.DataFrame](to_realign: T, target_ids: pd.Series
         A column from the target DataFrame
         whose values correspond to the
         index of `to_realign`.
+    Returns:
+        A subset of the data in `to_realign`;
+        index is a subset of `target_ids.index`.
     '''
     # flip `target_ids`
-    target_idx_by_origin_idx = target_ids.index.to_series(index=target_ids)
+    target_idx_by_arg_idx = target_ids.index.to_series(index=target_ids)
 
+    # temp DataFrame with new index as a column; drop the column
+    # and, if single column, turn to series
     realigned = pd.concat(
-        [to_realign, target_idx_by_origin_idx.rename('target_index')],
+        [to_realign, target_idx_by_arg_idx.rename('target_index')],
         join='inner', # only the rows in common between the two
         axis='columns'
     ).set_index(
         'target_index',
         drop=True
     ).squeeze(axis='columns')
-    assert isinstance(realigned, (pd.Series, pd.DataFrame))
-    realigned = realigned.reindex(index=target_ids.index)
 
-    assert type(realigned) == type(to_realign)
-    assert realigned.notna().all(None)  # pyright: ignore[reportArgumentType] pandas-stubs is wrong
+    # maybe the input was actually a one-column DataFrame
+    match to_realign:
+        case pd.Series():
+            assert isinstance(realigned, pd.Series)
+        case pd.DataFrame():
+            if len(to_realign.columns) == 1:
+                assert isinstance(realigned, pd.Series)
+                realigned = realigned.to_frame()
+            else:
+                assert isinstance(realigned, pd.DataFrame)
+
+    # reorder the rows of `realigned`
+    sorted_index = target_ids.index.intersection(realigned.index)
+    realigned = realigned.loc[sorted_index]
 
     return realigned
 
