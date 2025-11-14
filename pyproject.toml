@@ -19,7 +19,7 @@ Repository = "https://github.com/jeffreyalanwang/grade_conversion_script.git"
 "Bug Tracker" = "https://github.com/jeffreyalanwang/grade_conversion_script/issues"
 
 [project.scripts]
-grade-convert = "grade_conversion_script.__main__:main"
+grade-convert = "grade_conversion_script.__main__:cli_main"
 
 [project.gui-scripts]
 grade-convert-app = "grade_conversion_script.__main__:gui_main"

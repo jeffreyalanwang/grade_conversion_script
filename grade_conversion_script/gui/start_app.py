@@ -2,10 +2,28 @@
 
 from nicegui import ui
 
-# app.on_exception()
+from grade_conversion_script.gui.flow_components.app_flow import \
+    GradeConversionAppFlow
 
-def app():
-    ui.run(native=True)
+DEBUG = False
+
+if DEBUG:
+    print('Running in debug mode')
+
+def main():
+
+    GradeConversionAppFlow()
+
+    ui.run(
+        title='Grade Conversion',
+        favicon='📱',
+        native=not DEBUG,
+        dark=False,
+
+        tailwind=True,
+        reload=DEBUG,
+        prod_js=DEBUG,
+    )
 
 if __name__ in ('__main__', '__mp_main__'):
-    app()
+    main()
