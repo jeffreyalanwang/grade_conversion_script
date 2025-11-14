@@ -104,6 +104,7 @@ class DualListMatch(Element):
                         placeholders=('Match A', 'Match B'),
                     )
                     .classes(add='mx-1 my-auto')
+                    .classes(add='text-ellipsis')
                     .props(add='outline no-caps')
                     .props('title="Add match from selected"'))
 
@@ -175,15 +176,22 @@ class DualListMatch(Element):
             with ui.item() as i:
                 element = i
                 with ui.item_section():
-                    _ = ui.item_label(value.left)
-                    _ = ui.item_label(value.right)
+                    _ = (
+                        ui.item_label(value.left)
+                        .props(f'title="{value.left}"')
+                        .classes('leading-none truncate'))
+                    _ = (
+                        ui.item_label(value.right)
+                        .props(f'title="{value.right}"')
+                        .classes('leading-none truncate'))
                 with ui.item_section().props('side'):
                     undo_button = (
                         ui.button(
                             icon='undo',
                             color='grey',)
                         .props('title="Remove matched pair"')
-                        .props(add='flat round'))
+                        .props(add='flat round')
+                        .props(add='size="xs"'))
 
         _ = undo_button.on_click(
             lambda:
@@ -204,7 +212,8 @@ class DualListMatch(Element):
                             icon='undo',
                             color='grey',)
                         .props('title="Unmark as discarded"')
-                        .props(add='flat round'))
+                        .props(add='flat round')
+                        .props(add='size="xs"'))
 
         _ = undo_button.on_click(
             lambda:

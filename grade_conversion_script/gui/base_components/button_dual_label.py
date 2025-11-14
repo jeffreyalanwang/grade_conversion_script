@@ -50,12 +50,16 @@ class ButtonDualLabel(Button):
         return self.bottom_label.text
     @text_top.setter
     def text_top(self, value: str | None):
-        self.top_label.set_text(value.strip() if value else '')
+        value = value.strip() if value else ''
+        self.top_label.set_text(value)
+        self.top_label.props(f'title="{value}"')
         self.top_label.set_visibility( bool(self.top_label.text) )
         self.top_placeholder.set_visibility(not self.top_label.visible)
     @text_bottom.setter
     def text_bottom(self, value: str | None):
-        self.bottom_label.set_text(value.strip() if value else '')
+        value = value.strip() if value else ''
+        self.bottom_label.set_text(value)
+        self.bottom_label.props(f'title="{value}"')
         self.bottom_label.set_visibility( bool(self.bottom_label.text) )
         self.bottom_placeholder.set_visibility(not self.bottom_label.visible)
 
