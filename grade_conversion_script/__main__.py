@@ -47,13 +47,14 @@ def cli_main():
     print(f"Result saved to {output_file_path}.")
 
 def gui_main():
-    import os, logging
+    import os, logging, pathlib
     from grade_conversion_script import gui
 
     logging.basicConfig(
-        level=logging.ERROR,
+        level=logging.INFO,
+        # level=logging.ERROR,
         format="%(asctime)s - %(levelname)s - %(message)s",
-        filename=os.path.expanduser("~/Desktop"),
+        filename=pathlib.Path(os.path.expanduser("~/Desktop")) / "grade_conversion_script.log",
         filemode="a"  # Append to the file (default)
     )
     gui.main()
