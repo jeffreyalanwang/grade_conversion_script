@@ -51,11 +51,10 @@ def gui_main():
     from grade_conversion_script import gui
 
     logging.basicConfig(
-        level=logging.INFO,
-        # level=logging.ERROR,
+        # Log to console
+        level=logging.ERROR,
         format="%(asctime)s - %(levelname)s - %(message)s",
-        filename=pathlib.Path(os.path.expanduser("~/Desktop")) / "grade_conversion_script.log",
-        filemode="a"  # Append to the file (default)
+        # filename=pathlib.Path(os.path.expanduser("~/Desktop")) / "grade_conversion_script.log",
     )
     gui.main()
 
