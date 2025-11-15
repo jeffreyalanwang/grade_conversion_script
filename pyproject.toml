@@ -1,6 +1,6 @@
 [project]
 name = "grade_conversion_script"
-version = "0.0.1"
+version = "0.0.2"
 readme = "README.md"
 requires-python = ">= 3.12"
 dependencies = [
@@ -20,8 +20,6 @@ Repository = "https://github.com/jeffreyalanwang/grade_conversion_script.git"
 
 [project.scripts]
 grade-convert = "grade_conversion_script.__main__:cli_main"
-
-[project.gui-scripts]
 grade-convert-app = "grade_conversion_script.__main__:gui_main"
 
 [tool.pytest.ini_options]
