@@ -36,8 +36,10 @@ def main():
     ui.run(
         title='Grade Conversion',
         favicon='📱',
-        native=not DEBUG,
-        window_size=(750, 775) if not DEBUG else None,
+                            # Native mode options TODO
+                            # (disabled due to pywebview download functionality issues)
+        native=False,       # not DEBUG,
+        window_size=None,   # (750, 775) if not DEBUG else None,
         dark=False,
 
         tailwind=True,
