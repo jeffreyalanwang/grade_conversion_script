@@ -47,7 +47,7 @@ def cli_main():
     print(f"Result saved to {output_file_path}.")
 
 def gui_main():
-    import os, logging, pathlib
+    import logging
     from grade_conversion_script import gui
 
     logging.basicConfig(
