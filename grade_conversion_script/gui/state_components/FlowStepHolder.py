@@ -1,6 +1,6 @@
 from collections import Counter
 from collections.abc import Sequence
-from typing import Any, Callable, Final, NamedTuple
+from typing import Callable, Final, NamedTuple
 
 from grade_conversion_script.gui.state_components import UxFlow
 from grade_conversion_script.util.funcs import tuple_insert
@@ -41,6 +41,7 @@ class FlowStepHolder:
                 self._bind_element_inputs(step)
 
     def _bind_element_inputs(self, step: UxFlow.FlowStepElement) -> None:
+        ''' Input binding only occurs once, at __init__ time. '''
         assert isinstance(step, UxFlow.FlowStepInputElement)
         raise NotImplementedError(f"Unrecognized flow step takes input data: {step}")
 
@@ -58,23 +59,14 @@ class FlowStepHolder:
             if new_state.requires_continue:
                 prev_step.set_state_immediately(
                     prev_step.state.with_continue_required(True),)
-            else:
+            elif new_state.allows_start:
                 prev_step.set_state_debounced(
-                    prev_step.state.with_continue_required(False),)
+                    prev_step.state.with_continue_required(False), )
+            else: pass
         def callback_modifying_next_step(new_state: UxFlow.State):
             if not next_step:
                 return
-            if new_state.allows_continue and (
-                not isinstance(next_step, UxFlow.FlowStepInputElement)
-                or next_step.inputs is not None
-                    # In case this step is ready for continue
-                    # before `next_step` is ready for begin
-                    # (because its `inputs` attr is still None),
-                    # we assume a new element will be inserted
-                    # after this one, before `next_step`,
-                    # whose completion will trigger `next_step`
-                    # to begin.
-            ):
+            if new_state.allows_continue:
                 next_step.set_state_debounced(
                     next_step.state.with_start_allowed(True),)
             else:

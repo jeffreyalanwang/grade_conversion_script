@@ -144,8 +144,8 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
                 input_data = self.get_step(ImportDataFlowStep)
                 input_select = self.get_step(InputHandlerSelectStep)
                 output_select = self.get_step(OutputFormatSelectStep)
-
                 execute = step
+
                 def update_execute_inputs():
                     new_inputs = generate_execute_depends(
                         self.tmp_dir, input_data, input_select, output_select, )
@@ -156,8 +156,8 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
             case ResultActionsStep():
                 output_select = self.get_step(OutputFormatSelectStep)
                 execute = self.get_step(ExecuteStep)
-
                 result_actions = step
+
                 def update_result_inputs():
                     new_inputs = generate_result_actions_depends(
                         output_select, execute,)
