@@ -1,14 +1,12 @@
 import logging
 from contextlib import suppress
 from enum import Enum, IntEnum
-from itertools import chain
 from string import Template
 from textwrap import indent
 from typing import Final
 
 from nicegui import ElementFilter, ui, Event
 from nicegui.element import Element
-from nicegui.elements.mixins.disableable_element import DisableableElement
 
 from grade_conversion_script.gui.util import DebouncedRunner
 
@@ -71,15 +69,13 @@ class VisualState(Enum):
         content=Template(
             '''
             @layer components {
-                .$not_ready {
+                .$not_ready, .$complete_indicated {
                     opacity: 0.5;
                     transition: opacity 0.5s ease-in-out;
+                    cursor: not-allowed;                  
+                    pointer-events: none;
                 }
                 .$available {}
-                .$complete_indicated {
-                    opacity: 0.5;
-                    transition: opacity 0.5s ease-in-out;
-                }
             }
             ''').substitute(
                 not_ready=NOT_READY,
@@ -98,14 +94,6 @@ class VisualState(Enum):
             case self.COMPLETE_INDICATED:
                 return True
 
-    @classmethod
-    def disabled_sentinel_class_for(cls, element: ui.element) -> str:
-        '''
-        Allows the finding of disabled elements
-        disabled by the VisualState of a specific element.
-        '''
-        return f'disabled-by-ux-flow-step-{element.id}'
-
     def set_on_container(self, container: Element):
         ''' Use if a container needs visual decoration to match its child. '''
         _ = container.classes(add=self.value)
@@ -114,23 +102,8 @@ class VisualState(Enum):
         ''' See `set_on_container`. '''
         _ = container.classes(remove=self.value)
 
-    def set_on(self, element: ui.element):
+    def set_on(self, element: Element):
         _ = element.classes(add=self.value)
-        if self.disables_elements:
-            with element:
-                to_disable = chain(
-                    (element,) if isinstance(element, DisableableElement) else (),
-                    ElementFilter(kind=DisableableElement)
-                        .within(instance=element),
-                )
-            to_disable = filter(
-                lambda e: NO_VISUAL_DISABLE_CLASS not in e.classes,
-                to_disable
-            )
-            disable_sentinel = self.disabled_sentinel_class_for(element)
-            for element in to_disable:
-                _ = element.classes(add=disable_sentinel)
-                element.disable()
 
     def clear_from(self, element: ui.element):
         if self.value not in element.classes:
@@ -138,21 +111,6 @@ class VisualState(Enum):
                 f'Error removing {self} from element of type {type(element)}.'
                 f' Element classes: {list(element.classes)}')
         _ = element.classes(remove=self.value)
-        if self.disables_elements:
-            with element:
-                to_enable = chain(
-                    (element,) if isinstance(element, DisableableElement) else (),
-                    ElementFilter(kind=DisableableElement)
-                        .within(instance=element),
-                )
-            disable_sentinel = self.disabled_sentinel_class_for(element)
-            to_enable = filter(
-                lambda e: disable_sentinel in e.classes,
-                to_enable
-            )
-            for element in to_enable:
-                _ = element.classes(remove=disable_sentinel)
-                element.enable()
 
     @classmethod
     def clear_all_from(cls, element: ui.element):
