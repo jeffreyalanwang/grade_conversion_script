@@ -302,7 +302,7 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
 
         # We only touched "Points" columns that were specified in the input
         modified_columns: list[str] = [f"{criterion} - Points"
-                                       for criterion in grades.columns]
+                                 for criterion in grades.columns]
         new_rubric[modified_columns] = (
             new_rubric[modified_columns].apply(pd.to_numeric, downcast='integer')
         )
@@ -320,4 +320,12 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
     @override
     @classmethod
     def write_file(cls, self_output: pd.DataFrame, filepath: Path) -> None:
-        self_output.to_csv(filepath, index=False, header=True)
+
+        # We do not want to save the Rating columns
+        # because Canvas will interpret this for grade values
+        # (even if the points column exists and is blank)
+        ratings_cols: list[str] = [col_name for col_name in self_output.columns
+                                   if CriterionField.get_field_type(col_name) == CriterionField.PTS_LABEL]
+        ratings_dropped_df = self_output.drop(columns=ratings_cols)
+
+        ratings_dropped_df.to_csv(filepath, index=False, header=True)
