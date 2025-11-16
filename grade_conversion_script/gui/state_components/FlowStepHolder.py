@@ -94,19 +94,19 @@ class FlowStepHolder:
         on `step` and also registers them (so they can be replaced later).
         If arg is None, that callback is not modified.
         '''
-        old_callback_set = self.step_state_callbacks.get(step, None)
-        final_prev_step_modifier = old_callback_set.modifying_prev_step if old_callback_set else None
-        final_next_step_modifier = old_callback_set.modifying_next_step if old_callback_set else None
+        old_callbacks = self.step_state_callbacks.get(step, None)
+        final_prev_step_modifier = old_callbacks.modifying_prev_step if old_callbacks else None
+        final_next_step_modifier = old_callbacks.modifying_next_step if old_callbacks else None
 
         if modifying_prev_step:
             final_prev_step_modifier = modifying_prev_step
-            if old_callback_set:
-                step.on_state_changed.unsubscribe(old_callback_set.modifying_prev_step)
+            if old_callbacks:
+                step.on_state_changed.unsubscribe(old_callbacks.modifying_prev_step)
             step.on_state_changed.subscribe(modifying_prev_step)
         if modifying_next_step:
             final_next_step_modifier = modifying_next_step
-            if old_callback_set:
-                step.on_state_changed.unsubscribe(old_callback_set.modifying_next_step)
+            if old_callbacks:
+                step.on_state_changed.unsubscribe(old_callbacks.modifying_next_step)
             step.on_state_changed.subscribe(modifying_next_step)
 
         assert final_prev_step_modifier and final_next_step_modifier
@@ -166,3 +166,19 @@ class FlowStepHolder:
         else:
             prev_element_callback = self.step_state_callbacks[prev_element].modifying_prev_step
             prev_element_callback(prev_element.state)
+
+    def __str__(self):
+        header = type(self).__name__
+        steps_info = list[dict[str, str]]()
+        for step in self.steps:
+            step_info = dict[str, str]()
+            step_info['name'] = type(step).__name__
+            step_info['state'] = step.state.name
+            if isinstance(step, UxFlow.FlowStepInputElement):
+                step_info['input value'] = str(step.inputs is not None)
+            if isinstance(step, UxFlow.FlowStepDataElement):
+                step_info['data produced'] = type(step.data).__name__ if step.data else str(step.data)
+            steps_info.append(step_info)
+        item_state_descriptions = (f"{i}: {d.pop('name')} {d}"
+                                    for i, d in enumerate(steps_info))
+        return '\n'.join([header, *item_state_descriptions])

@@ -3,6 +3,7 @@ from contextlib import suppress
 from enum import Enum, IntEnum
 from itertools import chain
 from string import Template
+from textwrap import indent
 from typing import Final
 
 from nicegui import ElementFilter, ui, Event
@@ -217,18 +218,27 @@ class FlowStepElement(Element):
         return self._state
 
     def set_state_immediately(self, value: State):
+        self.log_changing_state(value)
         self._state_debouncer.cancel_all()
         self._state = value
         self.on_state_changed.emit(value)
         self.visual_state = VisualState.from_flow_state(value)
 
     def set_state_debounced(self, value: State):
+        '''
+        Debounce period cancels any recursion,
+        and prevents update if user makes
+        several consecutive changes in a row.
+        '''
         if value == self._state:
             return
-        logger.info(
-            f'Flow step state for {str(self).splitlines()[0]}'
-            f' changed from {self._state} to {value}')
         self._state_debouncer(lambda: self.set_state_immediately(value))
+
+    def log_changing_state(self, value: State):
+        ''' Call *before* state is modified. '''
+        logger.info(
+            f'Flow step {str(self).splitlines()[0]} changing ({self._state} to {value})'
+            + ('\n' + indent(self.parent.__str__(), '+ ')) if self.parent else '')
 
     @property
     def visual_state(self) -> VisualState:
@@ -242,6 +252,16 @@ class FlowStepElement(Element):
             self._visual_state.clear_from(self)
         self._visual_state = value
         value.set_on(self)
+
+    @property
+    def parent(self):
+        ancestor_slot = self.parent_slot
+        while ancestor_slot is not None:
+            ancestor_element = ancestor_slot.parent
+            if hasattr(ancestor_element, 'steps') and self in ancestor_element.steps:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                return ancestor_element  # pyright: ignore[reportReturnType]
+            ancestor_slot = ancestor_element.parent_slot
+        return None
 
 class FlowStepInputElement[T](FlowStepElement):
 

@@ -180,7 +180,9 @@ class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: igno
         super().add_flow_step(element, position)
 
 if __name__ in {"__main__", "__mp_main__"}:
-    from nicegui import ui
+    import logging, sys
+    logging.basicConfig(level=logging.INFO,stream=sys.stdout)
 
+    from nicegui import ui
     app_flow = GradeConversionAppFlow()
     ui.run(native=False, reload=False)
