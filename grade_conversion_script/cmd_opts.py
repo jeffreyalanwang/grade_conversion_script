@@ -311,8 +311,8 @@ def setup_per_args(input_args, output_args) -> Setup_Collection:
                                   else CanvasGradebookOutputFormat.ReplaceBehavior.INCREMENT
                                     if input_is_attendance
                                   else CanvasGradebookOutputFormat.ReplaceBehavior.ERROR ),
-                    warn_existing=( args.warn_on_existing
-                                    if hasattr(args, "warn_on_existing")
+                    warn_existing=( args.warn_existing
+                                    if hasattr(args, "warn_existing")
                                     else input_is_attendance ),
                 )
             case 'acr':
@@ -326,8 +326,8 @@ def setup_per_args(input_args, output_args) -> Setup_Collection:
                     replace_existing=(args.replace
                                         if args.replace is not None
                                         else False),
-                    warn_existing=( args.warn_on_existing
-                                    if hasattr(args, "warn_on_existing")
+                    warn_existing=( args.warn_existing
+                                    if hasattr(args, "warn_existing")
                                     else input_is_attendance ),
                 )
             case _:
