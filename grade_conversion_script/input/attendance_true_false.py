@@ -64,6 +64,9 @@ class AttendanceTrueFalse(InputHandler):
     @pa.check_types
     def get_attendance_single_file(self, input: pd.DataFrame) -> DataFrame[BoolsById]:
         '''
+        Remarks:
+            Because boolean attendance might be created in Excel,
+            we drop blank rows and columns.
         Args:
             input: Dataframe with >= 1 columns. Each column is its own day.
         Returns:
@@ -71,6 +74,8 @@ class AttendanceTrueFalse(InputHandler):
             modeled by `DataBy_StudentSisId`.
             Values are all type `bool`.
         '''
+        input = input.dropna(axis='index', how='all')
+        input = input.dropna(axis='columns', how='all')
 
         input = input.set_index(input.columns[0], drop=True)
 
