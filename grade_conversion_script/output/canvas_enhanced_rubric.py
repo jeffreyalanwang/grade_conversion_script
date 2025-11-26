@@ -141,11 +141,9 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
                 alias_id: int = index_to_alias_id[row]
                 student_name = self.student_aliases.best_effort_alias(best_effort_is_name, id=alias_id)
                 criterion = CriterionField.remove_field_suffix(col)
-
-                rating= full_existing.loc[row, criterion + CriterionField.PTS_LABEL.value]
                 comment = full_existing.loc[row, criterion + CriterionField.COMMENTS.value]
 
-                yield (existing_val, new_val, student_name, criterion, rating, comment)
+                yield (existing_val, new_val, student_name, criterion, comment)
 
         pd.testing.assert_index_equal(existing.index, incoming.index)
         assert len(existing.columns) == len(incoming.columns)
@@ -164,10 +162,9 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
                         f"(new: {new_val},",
                         f"student: {student_name},",
                         f"criterion: {criterion})",
-                        f"(Rating: {rating},",
-                        f"Comment: {comment})",
+                        f"(Comment: {comment})",
                     ))
-                    for existing_val, new_val, student_name, criterion, rating, comment
+                    for existing_val, new_val, student_name, criterion, comment
                     in conflicts_detail()
                 )
             ]
@@ -182,7 +179,7 @@ class CanvasEnhancedRubricOutputFormat(OutputFormat):
                         f"criterion: {criterion})",
                         f"(Comment: {comment})",
                     ))
-                    for existing_val, _, student_name, criterion, _, comment
+                    for existing_val, _, student_name, criterion, comment
                     in conflicts_detail()
                 )
             ]
