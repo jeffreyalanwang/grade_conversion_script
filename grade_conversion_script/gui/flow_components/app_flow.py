@@ -3,6 +3,7 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from typing import override
 
 from nicegui.element import Element
+from nicegui.elements.stepper import Stepper
 
 from grade_conversion_script.gui.base_components.split_panes_layout \
     import SplitPanesLayout
@@ -93,11 +94,10 @@ def generate_result_actions_depends(
 
     return value
 
-class GradeConversionAppFlow(FlowStepHolder, SplitPanesLayout):  # pyright: ignore[reportUnsafeMultipleInheritance]
+class GradeConversionAppFlow(FlowStepHolder, Stepper):  # pyright: ignore[reportUnsafeMultipleInheritance]
     '''
     Responsible for combining functionalities of
-    FlowStepHolder (manages state of children) and
-    SplitPanesLayout (manages visual positioning).
+    superclasses.
     '''
     def __init__(self, *args, **kwargs):
         self._tmp_dir_obj = TemporaryDirectory() # TemporaryDirectory will clean itself up when no more references are held.
