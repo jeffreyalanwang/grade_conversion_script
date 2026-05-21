@@ -24,6 +24,11 @@ class AliasNotFoundException(KeyError, Exception):
             message = f"None of the following aliases were found: {alias}"
         super().__init__(message, *args, **kwargs)
 
+def expansions_of(alias: str) -> Iterable[str]:
+    ''' For-granted synonyms for a given alias. '''
+    if ',' in alias and alias.count(',') == 1:
+        yield ' '.join( alias.split(',').reverse() )
+
 class AliasRecord:
     '''
     Match various names for an entity to each other.
@@ -85,8 +90,9 @@ class AliasRecord:
 
     def add_at_id(self, id: int, alias: str | Iterable[str]) -> None:
         '''
-        Add one or multiple aliases
-        for one entity, using its iD.
+        Add one or multiple aliases for one entity, using its id.
+
+        Base case for adding IDs.
         '''
         assert self.id_exists(id), f"Invalid ID: {id}"
         assert alias is not None
@@ -95,6 +101,12 @@ class AliasRecord:
             aliases = (alias,)
         else:
             aliases = alias
+
+        aliases = chain(
+            aliases,
+            *( expansions_of(item)
+               for item in aliases )
+        )
 
         for item in aliases:
             if item in self.all_aliases_of(id=id):
@@ -117,9 +129,6 @@ class AliasRecord:
         assert alias is not None
 
         if isinstance(alias, str):
-            if ',' in alias and alias.count(',') == 1:
-                self.add_new_entity(' '.join( alias.split(',').reverse() ))
-
             id = self._new_id()
             self.add_at_id(id, alias.strip())
         else:
@@ -146,7 +155,7 @@ class AliasRecord:
             id = self.id_together(aliases)
         except AliasNotFoundException:
             if allow_new:
-               id = self._new_id()
+                id = self._new_id()
             else:
                 raise
 
