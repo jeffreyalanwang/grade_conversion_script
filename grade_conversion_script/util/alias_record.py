@@ -117,8 +117,11 @@ class AliasRecord:
         assert alias is not None
 
         if isinstance(alias, str):
+            if ',' in alias and alias.count(',') == 1:
+                self.add_new_entity(' '.join( alias.split(',').reverse() ))
+
             id = self._new_id()
-            self.add_at_id(id, alias)
+            self.add_at_id(id, alias.strip())
         else:
             aliases = alias
             for alias in aliases:
