@@ -40,7 +40,7 @@ to convert grades from one .csv format to another.
     
     ```console
     # Save to local computer
-    pipx install git+https://github.com/jeffreyalanwang/grade_conversion_script.git [OPTIONS]
+    pipx install git+https://github.com/jeffreyalanwang/grade_conversion_script.git
     
     # Run
     grade-convert [OPTIONS]
@@ -94,8 +94,11 @@ grade-convert-app
 [Once installed](https://docs.astral.sh/uv/getting-started/installation/), it can substitute any of the above commands. `uvx --from` replaces `pipx run --spec`.
 
 ```console
-uvx --from git+https://github.com/jeffreyalanwang/grade_conversion_script.git grade-convert
-uvx --from "grade_conversion_script[gui] @ git+https://github.com/jeffreyalanwang/grade_conversion_script.git" grade-convert-app
+uvx --from git+https://github.com/jeffreyalanwang/grade_conversion_script.git grade-convert [OPTIONS]
+```
+```console
+# GUI
+uvx --from "grade_conversion_script[gui] @ git+https://github.com/jeffreyalanwang/grade_conversion_script.git" grade-convert-app 
 ```
 
 ## Extending
