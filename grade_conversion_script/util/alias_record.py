@@ -7,8 +7,12 @@ import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import DataFrame, Series
 
-from grade_conversion_script.util.custom_types import AnyById, IndexFlag, \
-    IterableOfStr, Matcher
+from grade_conversion_script.util.custom_types import (
+    AnyById,
+    IndexFlag,
+    IterableOfStr,
+    Matcher,
+)
 
 python_id = id
 
@@ -24,10 +28,11 @@ class AliasNotFoundException(KeyError, Exception):
             message = f"None of the following aliases were found: {alias}"
         super().__init__(message, *args, **kwargs)
 
-def expansions_of(alias: str) -> Iterable[str]:
+def name_expansions(alias: str) -> Iterable[str]:
     ''' For-granted synonyms for a given alias. '''
     if ',' in alias and alias.count(',') == 1:
-        yield ' '.join( alias.split(',').reverse() )
+        last, first = alias.split(',')
+        yield f"{first} {last}"
 
 class AliasRecord:
     '''
@@ -36,10 +41,18 @@ class AliasRecord:
 
 # region magic methods
 
-    def __init__(self):
+    def __init__(self, expansions: Callable[[str], Iterable[str]] = name_expansions):
 
         self._dict: dict[int, set[str]] = {}
         ''' Associate a list of aliases with a unique integer ID. '''
+
+        self._expansions_of: Callable[[str], Iterable[str]] = expansions
+        ''' 
+        :param alias: The alias to generate synonyms for.
+        :return: An Iterable of automatic synonyms for the alias.
+                 Must not return any aliases that a different alias
+                 might match. 
+        '''
 
         self._next_id = 400 # make the number noticeably different from a typical int
 
@@ -98,21 +111,19 @@ class AliasRecord:
         assert alias is not None
 
         if isinstance(alias, str):
-            aliases = (alias,)
+            aliases = [alias,]
         else:
-            aliases = alias
+            aliases = [*alias,]
 
-        aliases = chain(
-            aliases,
-            *( expansions_of(item)
-               for item in aliases )
-        )
+        for expansion_set in (self._expansions_of(alias) for alias in aliases):
+            aliases += expansion_set
 
         for item in aliases:
-            if item in self.all_aliases_of(id=id):
-                pass # set.update() will just have no effect
-            elif item in self:
-                raise ValueError(f"Alias {item} already exists (within following set: {self.all_aliases_of(id=id)}.")
+            if item in self and self.id_of(item) != id:
+                raise ValueError(
+                    f"Alias {item} already exists (within"
+                    f" following set: {self.all_aliases_of(id=id)}."
+                )
 
         self._dict[id].update(aliases)
 
@@ -278,21 +289,17 @@ class AliasRecord:
         Return the full set of aliases
         known for an entity.
         '''
-        match id, alias:
-            case None, None:
-                raise ValueError("Must provide either id or known_alias.")
-            case _, None:
-                # find by id
-                try:
-                    return self._dict[id]
-                except KeyError as e:
-                    raise IdNotFoundException(id) from e
-            case None, _:
-                # find by alias
-                id = self.id_of(alias) # may raise
-                return self.all_aliases_of(id=id)
-            case _, _:
-                raise ValueError("Must provide only one of the following: id, known_alias.")
+        if id is not None: # find by id
+            assert alias is None
+            try:
+                return self._dict[id]
+            except KeyError as e:
+                raise IdNotFoundException(id) from e
+        elif alias is not None: # find by alias
+            id = self.id_of(alias) # may raise
+            return self.all_aliases_of(id=id)
+        else:
+            raise ValueError("Must provide either id or known_alias.")
 
     def best_effort_alias(self, rule: Callable[[str], bool], *, id: int) -> str:
         '''
@@ -335,17 +342,14 @@ class AliasRecord:
         (e.g. a set of aliases for all
         entities in a destination dataset).
         '''
-        match id, known_alias:
-            case None, None:
-                raise ValueError("Must provide either id or known_alias.")
-            case _, None:
-                # find by id
-                all_aliases = self.all_aliases_of(id=id)
-            case None, _:
-                # find by known_alias
-                all_aliases = self.all_aliases_of(alias=known_alias)
-            case _, _:
-                raise ValueError("Must provide only one of the following: id, known_alias.")
+        if id is not None: # find by id
+            assert known_alias is None
+            all_aliases = self.all_aliases_of(id=id)
+        elif known_alias is not None: # find by known_alias
+            assert id is None
+            all_aliases = self.all_aliases_of(alias=known_alias)
+        else:
+            raise ValueError("Must provide either id or known_alias.")
 
         matches = set(all_aliases).intersection(acceptable_aliases)
 

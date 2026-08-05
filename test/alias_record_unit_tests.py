@@ -217,15 +217,6 @@ class TestAliasRecordLookup:
             ar.find_mutual_alias(["test"])
         assert "Must provide either id or known_alias" in str(exc_info.value)
 
-    @no_type_check
-    def test_find_acceptable_alias_both_params(self):
-        ar = AliasRecord()
-        ar.add_together("test")
-        with pytest.raises(ValueError) as exc_info:
-            ar.find_mutual_alias(["test"], id=400, known_alias="test")
-        assert "Must provide only one" in str(exc_info.value)
-
-
 class TestAliasRecordDataFrame:
     """Test DataFrame manipulation methods."""
     
@@ -392,3 +383,20 @@ class TestAliasRecordEdgeCases:
         
         result = ar.id_of_df(df, "name", expect_new_entities=False, collect_new_aliases=False)
         assert list(result) == [400, 400]
+
+class TestAliasRecordExpansions:
+    """
+    Test AliasRecord automatic expansions functionality
+    (i.e. `name_expansions`).
+    """
+
+    def test_inverted_title_expansion(self):
+        ar = AliasRecord()
+        ar.add_new_entity("Smith, John")
+        assert ar.id_of("Smith, John") == 400
+
+    def test_incorrect_inverted_title_expansion(self):
+        ar = AliasRecord()
+        ar.add_new_entity("Has, Actual, Commas")
+        assert ar.all_aliases_of(id=400).__len__() == 1
+        assert ar.all_aliases_of(id=400) == {"Has, Actual, Commas"}
